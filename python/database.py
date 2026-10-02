@@ -145,6 +145,22 @@ def init_db():
     )
     ''')
 
+    # 7. Gmail Freight Threads Table
+    cursor.execute('''
+    CREATE TABLE IF NOT EXISTS gmail_threads (
+        id TEXT PRIMARY KEY,
+        thread_id TEXT UNIQUE NOT NULL,
+        subject TEXT NOT NULL,
+        from_email TEXT NOT NULL,
+        snippet TEXT,
+        parsed_data_json TEXT,
+        status TEXT NOT NULL,
+        last_action TEXT,
+        messages_json TEXT,
+        updated_at TEXT
+    )
+    ''')
+
     # Seed Default Company Profile if Empty
     cursor.execute('SELECT COUNT(*) FROM company_profile')
     if cursor.fetchone()[0] == 0:

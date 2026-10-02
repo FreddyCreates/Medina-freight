@@ -255,15 +255,120 @@ if (geminiApiKey) {
 // -------------------------------------------------------------
 
 // 1. Dedicated Rate Confirmation Email Parser using Gemini 3.8 Flash
+function parseFreightDataDeterministically(text: string, fromSender = ''): any {
+  const cleanText = text || '';
+  
+  // Extract Load #
+  const loadMatch = cleanText.match(/(?:Load|Tender|Ref|Order|Booking|Confirmation|RC|Rate\s*Con)\s*(?:Number|#|No)?[:#-]?\s*([A-Z0-9_-]{4,20})/i);
+  const loadNumber = loadMatch?.[1] || undefined;
+
+  // Extract Broker
+  let broker = undefined;
+  if (fromSender) {
+    broker = fromSender.split('<')[0].replace(/["']/g, '').trim();
+  } else {
+    const brokerMatch = cleanText.match(/(?:Broker|Customer|Carrier|Shipper|Company)[:-]?\s*([A-Z][A-Za-z0-9\s,&.]{3,35})/i);
+    if (brokerMatch) broker = brokerMatch[1].trim();
+  }
+
+  // Extract Origin & Dest City/State
+  const cityStateRegex = /([A-Z][a-zA-Z\s.-]+),\s*([A-Z]{2})/g;
+  const matches = Array.from(cleanText.matchAll(cityStateRegex));
+  
+  let originCity = undefined;
+  let originState = undefined;
+  let destCity = undefined;
+  let destState = undefined;
+
+  if (matches.length >= 2) {
+    originCity = matches[0][1].trim();
+    originState = matches[0][2].trim();
+    destCity = matches[1][1].trim();
+    destState = matches[1][2].trim();
+  } else if (matches.length === 1) {
+    originCity = matches[0][1].trim();
+    originState = matches[0][2].trim();
+  }
+
+  // Extract Money / Rates
+  const totalMatch = cleanText.match(/(?:Total|Flat|Agreed|Rate|Pay|Amount|Gross)[:#$-]?\s*[\$]?\s*([\d,]+(?:\.\d{2})?)/i);
+  const rate = totalMatch ? parseFloat(totalMatch[1].replace(/,/g, '')) : undefined;
+
+  const linehaulMatch = cleanText.match(/(?:Linehaul|Base|LH|Line\s*Haul)[:#$-]?\s*[\$]?\s*([\d,]+(?:\.\d{2})?)/i);
+  const linehaulPay = linehaulMatch ? parseFloat(linehaulMatch[1].replace(/,/g, '')) : undefined;
+
+  const fuelMatch = cleanText.match(/(?:Fuel|FSC|Surcharge|Fuel\s*Surcharge)[:#$-]?\s*[\$]?\s*([\d,]+(?:\.\d{2})?)/i);
+  const fuelSurcharge = fuelMatch ? parseFloat(fuelMatch[1].replace(/,/g, '')) : undefined;
+
+  // Detention terms
+  const detentionMatch = cleanText.match(/(?:Detention|Dwell|Delay|Waiting\s*Time)[:#$-]?\s*([^\n,]{5,80})/i);
+  const detentionTerms = detentionMatch ? detentionMatch[1].trim() : undefined;
+
+  // Equipment Type
+  let equipmentType = undefined;
+  if (/reefer|refrigerated/i.test(cleanText)) equipmentType = '53ft Reefer';
+  else if (/dry van|van/i.test(cleanText)) equipmentType = '53ft Dry Van';
+  else if (/flatbed/i.test(cleanText)) equipmentType = 'Flatbed';
+  else if (/stepdeck|step deck/i.test(cleanText)) equipmentType = 'Stepdeck';
+
+  // Commodity
+  const commMatch = cleanText.match(/(?:Commodity|Cargo|Product|Description)[:-]?\s*([^\n,]{3,50})/i);
+  const commodity = commMatch ? commMatch[1].trim() : undefined;
+
+  // Weight
+  const weightMatch = cleanText.match(/(?:Weight|Lbs|Qty)[:-]?\s*([\d,]+)\s*(?:lbs|lb)?/i);
+  const weightLbs = weightMatch ? parseInt(weightMatch[1].replace(/,/g, ''), 10) : undefined;
+
+  // Dates
+  const dateRegex = /\b(\d{1,2})[\/\.-](\d{1,2})[\/\.-](\d{2,4})\b/g;
+  const dateMatches = Array.from(cleanText.matchAll(dateRegex));
+  let pickupDate = undefined;
+  let deliveryDate = undefined;
+
+  if (dateMatches.length >= 2) {
+    pickupDate = dateMatches[0][0];
+    deliveryDate = dateMatches[1][0];
+  } else if (dateMatches.length === 1) {
+    pickupDate = dateMatches[0][0];
+  }
+
+  return {
+    loadNumber,
+    broker,
+    originCity,
+    originState,
+    destCity,
+    destState,
+    rate,
+    linehaulPay,
+    fuelSurcharge,
+    detentionTerms,
+    equipmentType,
+    commodity,
+    weightLbs,
+    pickupDate,
+    deliveryDate,
+    confidenceScore: 85
+  };
+}
+
 app.post('/api/gemini/parse-ratecon', async (req: Request, res: Response) => {
-  const { rawEmailText, emailSubject, fromSender } = req.body;
+  const { rawEmailText, emailSubject, fromSender, pdfBase64, pdfMimeType } = req.body;
 
   try {
     if (aiClient && geminiApiKey) {
-      const response = await aiClient.models.generateContent({
-        model: 'gemini-3.8-flash',
-        contents: `You are an expert freight logistics OCR and rate confirmation parsing engine. 
-Analyze the provided email subject, sender, and email body to extract structured freight details.
+      const contents: any[] = [];
+      if (pdfBase64) {
+        contents.push({
+          inlineData: {
+            data: pdfBase64.replace(/^data:[^;]+;base64,/, ''),
+            mimeType: pdfMimeType || 'application/pdf'
+          }
+        });
+      }
+      contents.push(`You are an expert freight logistics OCR and rate confirmation parsing engine for a real carrier business.
+Analyze the provided email subject, sender, raw email body, and any attached PDF document to extract structured freight details.
+DO NOT hallucinate or invent any information. If a field is not found or cannot be computed directly from the text/document, return null for that field.
 
 Email Sender: ${fromSender || 'Unknown'}
 Email Subject: ${emailSubject || 'Rate Confirmation'}
@@ -272,22 +377,27 @@ ${rawEmailText || ''}
 
 Extract and return a JSON object strictly adhering to this schema:
 {
-  "loadNumber": string (e.g. "RC-99412" or "LD-88210"),
-  "broker": string (broker or customer company name),
-  "originCity": string (e.g. "Chicago"),
-  "originState": string (e.g. "IL"),
-  "destCity": string (e.g. "Dallas"),
-  "destState": string (e.g. "TX"),
-  "rate": number (total agreed gross pay in USD),
-  "linehaulPay": number (estimated base linehaul),
-  "fuelSurcharge": number (estimated FSC),
-  "equipmentType": string ("53ft Reefer", "53ft Dry Van", "Flatbed", or "Stepdeck"),
-  "commodity": string,
-  "weightLbs": number,
-  "pickupDate": string (YYYY-MM-DD format or relative date),
-  "deliveryDate": string (YYYY-MM-DD format or relative date),
+  "loadNumber": string or null (e.g. "RC-99412" or "LD-88210"),
+  "broker": string or null (broker or customer company name),
+  "originCity": string or null (e.g. "Chicago"),
+  "originState": string or null (e.g. "IL"),
+  "destCity": string or null (e.g. "Dallas"),
+  "destState": string or null (e.g. "TX"),
+  "rate": number or null (total agreed gross pay in USD),
+  "linehaulPay": number or null (base linehaul rate),
+  "fuelSurcharge": number or null (fuel surcharge or FSC),
+  "detentionTerms": string or null (specific terms like "$50/hr after 2 hrs free" or null),
+  "equipmentType": string or null ("53ft Reefer", "53ft Dry Van", "Flatbed", or "Stepdeck"),
+  "commodity": string or null,
+  "weightLbs": number or null,
+  "pickupDate": string or null (YYYY-MM-DD format),
+  "deliveryDate": string or null (YYYY-MM-DD format),
   "confidenceScore": number (0-100 score)
-}`,
+}`);
+
+      const response = await aiClient.models.generateContent({
+        model: 'gemini-3.8-flash',
+        contents: contents,
         config: {
           responseMimeType: 'application/json',
           responseSchema: {
@@ -302,14 +412,14 @@ Extract and return a JSON object strictly adhering to this schema:
               rate: { type: Type.NUMBER },
               linehaulPay: { type: Type.NUMBER },
               fuelSurcharge: { type: Type.NUMBER },
+              detentionTerms: { type: Type.STRING },
               equipmentType: { type: Type.STRING },
               commodity: { type: Type.STRING },
               weightLbs: { type: Type.NUMBER },
               pickupDate: { type: Type.STRING },
               deliveryDate: { type: Type.STRING },
               confidenceScore: { type: Type.NUMBER }
-            },
-            required: ['broker', 'originCity', 'originState', 'destCity', 'destState', 'rate', 'equipmentType']
+            }
           }
         }
       });
@@ -328,28 +438,30 @@ Extract and return a JSON object strictly adhering to this schema:
     console.warn('Gemini RateCon Parse fallback:', err?.message);
   }
 
-  // Graceful fallback parser if API key is not present or offline
-  const total = 3450;
+  // Graceful deterministic fallback parser (No hallucination!)
+  const extracted = parseFreightDataDeterministically(`${emailSubject}\n${rawEmailText}`, fromSender);
+  
   return res.json({
     success: true,
     data: {
-      loadNumber: `RC-${Math.floor(10000 + Math.random() * 90000)}`,
-      broker: fromSender ? fromSender.split('<')[0].trim() : 'C.H. Robinson Worldwide',
-      originCity: 'Aurora',
-      originState: 'IL',
-      destCity: 'Grand Prairie',
-      destState: 'TX',
-      rate: total,
-      linehaulPay: 3100,
-      fuelSurcharge: 350,
-      equipmentType: '53ft Reefer',
-      commodity: 'Refrigerated Consumer Foods',
-      weightLbs: 41800,
-      pickupDate: new Date().toISOString().split('T')[0],
-      deliveryDate: new Date(Date.now() + 2 * 24 * 3600 * 1000).toISOString().split('T')[0],
-      confidenceScore: 98
+      loadNumber: extracted.loadNumber || null,
+      broker: extracted.broker || (fromSender ? fromSender.split('<')[0].trim() : null),
+      originCity: extracted.originCity || null,
+      originState: extracted.originState || null,
+      destCity: extracted.destCity || null,
+      destState: extracted.destState || null,
+      rate: extracted.rate || null,
+      linehaulPay: extracted.linehaulPay || null,
+      fuelSurcharge: extracted.fuelSurcharge || null,
+      detentionTerms: extracted.detentionTerms || null,
+      equipmentType: extracted.equipmentType || null,
+      commodity: extracted.commodity || null,
+      weightLbs: extracted.weightLbs || null,
+      pickupDate: extracted.pickupDate || null,
+      deliveryDate: extracted.deliveryDate || null,
+      confidenceScore: extracted.loadNumber ? 80 : 20
     },
-    source: 'fallback-parser',
+    source: 'deterministic-extractor',
     timestamp: new Date().toISOString()
   });
 });

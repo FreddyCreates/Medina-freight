@@ -1,21 +1,15 @@
 import React from 'react';
 import { Collaborator, WindowsWatcherConfig, CompanyProfile } from '../../types';
 import { 
-  Radio, 
   Laptop, 
   FileDown, 
-  FolderKanban, 
+  Building2, 
+  Calculator, 
+  Users, 
+  Bot, 
+  Globe, 
   ShieldCheck, 
-  Cpu,
-  Mail,
-  Zap,
-  Globe,
-  CalendarDays,
-  Building2,
-  Calculator,
-  Users,
-  Bot,
-  Wrench
+  Cpu 
 } from 'lucide-react';
 
 interface HeaderProps {
@@ -46,53 +40,52 @@ export const Header: React.FC<HeaderProps> = ({
   const activeCollaborators = collaborators.filter(c => c.status === 'active' || c.status === 'in_review');
 
   return (
-    <header className="flex items-center justify-between px-6 py-3.5 bg-slate-900 border-b border-slate-800/80 sticky top-0 z-40 shrink-0 select-none">
-      {/* Zone 1: Single text element wordmark */}
+    <header className="flex items-center justify-between px-6 py-3 bg-white border-b border-gray-200 sticky top-0 z-40 shrink-0 select-none shadow-xs">
+      {/* Zone 1: Wordmark */}
       <div 
         onClick={onOpenCompanyModal}
-        className="text-lg font-bold tracking-tight text-white flex items-center gap-2.5 group cursor-pointer"
+        className="text-lg font-bold tracking-tight text-gray-900 flex items-center gap-2.5 group cursor-pointer"
         title="Click to edit real company legal name, DOT #, MC #, and dispatch email"
       >
-        <span className="w-8 h-8 rounded-lg bg-gradient-to-br from-orange-500 to-amber-600 flex items-center justify-center text-white font-black text-sm shadow-md group-hover:from-orange-400 group-hover:to-amber-500 transition-all">
+        <span className="w-8 h-8 rounded-lg bg-gray-100 border border-gray-200 flex items-center justify-center text-gray-800 font-bold text-xs">
           AF
         </span>
         <div className="flex flex-col text-left">
-          <span className="font-extrabold tracking-tight text-sm leading-tight text-white group-hover:text-orange-400 transition-colors">
+          <span className="font-extrabold tracking-tight text-sm leading-tight text-gray-900 group-hover:text-[#007AFF] transition-colors">
             {companyProfile?.companyName || 'Your Carrier Name LLC'}
           </span>
-          <span className="text-[10px] text-slate-400 font-mono">
-            DOT #{companyProfile?.dotNumber || 'DOT-PENDING'} · MC #{companyProfile?.mcNumber || 'MC-PENDING'} ⚙️
+          <span className="text-[10px] text-gray-500 font-mono">
+            DOT #{companyProfile?.dotNumber || 'DOT-PENDING'} · MC #{companyProfile?.mcNumber || 'MC-PENDING'}
           </span>
         </div>
       </div>
 
       {/* Zone 2: Navigation Links */}
-      <nav className="hidden xl:flex items-center gap-4 text-sm font-medium text-slate-300">
+      <nav className="hidden xl:flex items-center gap-5 text-xs font-medium text-gray-600">
         <button
           onClick={() => onTabChange('gemini-admin')}
-          className={`hover:text-white transition-colors cursor-pointer py-1 flex items-center gap-1.5 ${
-            currentTab === 'gemini-admin' ? 'text-white border-b-2 border-purple-500 font-semibold text-purple-400' : 'text-slate-400'
+          className={`hover:text-gray-900 transition-colors cursor-pointer py-1 flex items-center gap-1.5 ${
+            currentTab === 'gemini-admin' ? 'text-[#007AFF] font-semibold border-b-2 border-[#007AFF]' : 'text-gray-600'
           }`}
         >
-          <Bot className="w-3.5 h-3.5 text-purple-400" />
-          <span>Gemini Omni Admin</span>
-          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+          <Bot className="w-3.5 h-3.5 text-gray-500" />
+          <span>Gemini Omni Agent</span>
         </button>
 
         <button
           onClick={() => onTabChange('estimates')}
-          className={`hover:text-white transition-colors cursor-pointer py-1 flex items-center gap-1.5 ${
-            currentTab === 'estimates' ? 'text-white border-b-2 border-blue-500 font-semibold text-blue-400' : 'text-slate-400'
+          className={`hover:text-gray-900 transition-colors cursor-pointer py-1 flex items-center gap-1.5 ${
+            currentTab === 'estimates' ? 'text-[#007AFF] font-semibold border-b-2 border-[#007AFF]' : 'text-gray-600'
           }`}
         >
-          <Calculator className="w-3.5 h-3.5 text-blue-400" />
+          <Calculator className="w-3.5 h-3.5 text-gray-500" />
           <span>Freight Estimates</span>
         </button>
 
         <button
           onClick={() => onTabChange('projects')}
-          className={`hover:text-white transition-colors cursor-pointer py-1 ${
-            currentTab === 'projects' ? 'text-white border-b-2 border-orange-500 font-semibold' : 'text-slate-400'
+          className={`hover:text-gray-900 transition-colors cursor-pointer py-1 ${
+            currentTab === 'projects' ? 'text-[#007AFF] font-semibold border-b-2 border-[#007AFF]' : 'text-gray-600'
           }`}
         >
           Dispatch Matrix
@@ -100,18 +93,18 @@ export const Header: React.FC<HeaderProps> = ({
 
         <button
           onClick={() => onTabChange('fleet-drivers')}
-          className={`hover:text-white transition-colors cursor-pointer py-1 flex items-center gap-1.5 ${
-            currentTab === 'fleet-drivers' ? 'text-white border-b-2 border-purple-500 font-semibold text-purple-400' : 'text-slate-400'
+          className={`hover:text-gray-900 transition-colors cursor-pointer py-1 flex items-center gap-1.5 ${
+            currentTab === 'fleet-drivers' ? 'text-[#007AFF] font-semibold border-b-2 border-[#007AFF]' : 'text-gray-600'
           }`}
         >
-          <Users className="w-3.5 h-3.5 text-purple-400" />
+          <Users className="w-3.5 h-3.5 text-gray-500" />
           <span>Fleet & Drivers</span>
         </button>
 
         <button
           onClick={() => onTabChange('invoicing')}
-          className={`hover:text-white transition-colors cursor-pointer py-1 ${
-            currentTab === 'invoicing' ? 'text-white border-b-2 border-orange-500 font-semibold' : 'text-slate-400'
+          className={`hover:text-gray-900 transition-colors cursor-pointer py-1 ${
+            currentTab === 'invoicing' ? 'text-[#007AFF] font-semibold border-b-2 border-[#007AFF]' : 'text-gray-600'
           }`}
         >
           Billing & Factoring
@@ -119,104 +112,71 @@ export const Header: React.FC<HeaderProps> = ({
 
         <button
           onClick={() => onTabChange('workspace')}
-          className={`hover:text-white transition-colors cursor-pointer py-1 flex items-center gap-1.5 ${
-            currentTab === 'workspace' ? 'text-white border-b-2 border-blue-500 font-semibold text-blue-400' : 'text-slate-400'
+          className={`hover:text-gray-900 transition-colors cursor-pointer py-1 flex items-center gap-1.5 ${
+            currentTab === 'workspace' ? 'text-[#007AFF] font-semibold border-b-2 border-[#007AFF]' : 'text-gray-600'
           }`}
         >
-          <Globe className="w-3.5 h-3.5 text-blue-400" />
+          <Globe className="w-3.5 h-3.5 text-gray-500" />
           <span>Google Suite</span>
         </button>
 
         <button
           onClick={() => onTabChange('compliance')}
-          className={`hover:text-white transition-colors cursor-pointer py-1 flex items-center gap-1.5 ${
-            currentTab === 'compliance' ? 'text-white border-b-2 border-emerald-500 font-semibold text-emerald-400' : 'text-slate-400'
+          className={`hover:text-gray-900 transition-colors cursor-pointer py-1 flex items-center gap-1.5 ${
+            currentTab === 'compliance' ? 'text-[#007AFF] font-semibold border-b-2 border-[#007AFF]' : 'text-gray-600'
           }`}
         >
-          <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+          <ShieldCheck className="w-3.5 h-3.5 text-gray-500" />
           <span>Carrier Compliance</span>
         </button>
 
         <button
           onClick={() => onTabChange('foundry')}
-          className={`hover:text-white transition-colors cursor-pointer py-1 flex items-center gap-1.5 ${
-            currentTab === 'foundry' ? 'text-white border-b-2 border-orange-500 font-semibold text-orange-400' : 'text-slate-400'
+          className={`hover:text-gray-900 transition-colors cursor-pointer py-1 flex items-center gap-1.5 ${
+            currentTab === 'foundry' ? 'text-[#007AFF] font-semibold border-b-2 border-[#007AFF]' : 'text-gray-600'
           }`}
         >
-          <Cpu className="w-3.5 h-3.5 text-orange-400" />
+          <Cpu className="w-3.5 h-3.5 text-gray-500" />
           <span>Foundry AI Studio</span>
-          {autoPilotEnabled && (
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-          )}
         </button>
       </nav>
 
-      {/* Zone 3: Actions, Google Workspace Status, Auto-Pilot & Collaborators */}
+      {/* Zone 3: Actions */}
       <div className="flex items-center gap-3">
-        {/* Company Profile Button */}
         {onOpenCompanyModal && (
           <button
             onClick={onOpenCompanyModal}
-            className="px-3 py-1.5 rounded-xl bg-orange-600/10 hover:bg-orange-600/20 text-orange-300 border border-orange-500/30 text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
+            className="px-3 py-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-800 border border-gray-300 text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer"
             title="Edit Carrier Authority & Company Profile"
           >
-            <Building2 className="w-3.5 h-3.5 text-orange-400" />
+            <Building2 className="w-3.5 h-3.5 text-gray-600" />
             <span className="hidden sm:inline">{companyProfile?.companyName || 'Company Profile'}</span>
           </button>
         )}
-        {/* Auto-Pilot Pulsing Status Pill */}
-        <button
-          onClick={() => onTabChange('foundry')}
-          className={`px-3 py-1.5 rounded-full text-xs font-semibold flex items-center gap-2 border transition-all cursor-pointer ${
-            autoPilotEnabled 
-              ? 'bg-indigo-500/10 text-indigo-300 border-indigo-500/30 hover:bg-indigo-500/20' 
-              : 'bg-slate-800 text-slate-400 border-slate-700'
-          }`}
-          title="Auto-Pilot autonomous tender monitoring"
-        >
-          <Zap className={`w-3.5 h-3.5 ${autoPilotEnabled ? 'text-indigo-400 animate-pulse' : 'text-slate-500'}`} />
-          <span className="hidden sm:inline font-mono text-[11px]">
-            {autoPilotEnabled ? 'Auto-Pilot Active' : 'Auto-Pilot Paused'}
-          </span>
-        </button>
 
-        {/* Google Workspace Quick Button */}
-        <button
-          onClick={() => onTabChange('workspace')}
-          className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
-          title="Google Workspace Hub (Gmail, Calendar, Docs, Drive)"
-        >
-          <span className="text-xs">🌐</span>
-          <span className="hidden md:inline">Google Suite</span>
-        </button>
-
-        {/* Windows Companion App Button */}
         <button
           onClick={onOpenWindowsModal}
-          className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700/80 text-xs text-slate-300 transition-colors"
+          className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 border border-gray-300 text-xs text-gray-800 transition-colors"
           title="Configure Local Folder Watcher"
         >
-          <Laptop className="w-3.5 h-3.5 text-blue-400" />
+          <Laptop className="w-3.5 h-3.5 text-gray-600" />
           <span>Folder Watcher</span>
-          <span className={`w-2 h-2 rounded-full ${windowsConfig.autoWatchEnabled ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`} />
         </button>
 
-        {/* Quick PDF Summary Export */}
         <button
           onClick={onQuickGeneratePDF}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-500 hover:to-amber-500 text-white text-xs font-semibold shadow-sm transition-all active:scale-95 cursor-pointer"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-900 hover:bg-gray-800 text-white text-xs font-medium transition-all cursor-pointer shadow-xs"
           title="Export Project Summary Packet (PDF)"
         >
-          <FileDown className="w-3.5 h-3.5" />
+          <FileDown className="w-3.5 h-3.5 text-gray-300" />
           <span className="hidden sm:inline">PDF Packet</span>
         </button>
 
-        {/* Real-time Team Collaborators Avatar Stack */}
-        <div className="flex items-center -space-x-2 pl-2 border-l border-slate-800">
+        <div className="flex items-center -space-x-2 pl-2 border-l border-gray-200">
           {activeCollaborators.slice(0, 3).map((collab) => (
             <div
               key={collab.id}
-              className={`w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold text-white ring-2 ring-slate-900 ${collab.avatarBg}`}
+              className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold text-gray-700 bg-gray-200 border border-white"
               title={`${collab.name} (${collab.role}) - ${collab.status}`}
             >
               {collab.initials}

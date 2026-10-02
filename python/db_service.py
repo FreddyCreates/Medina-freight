@@ -134,6 +134,48 @@ def record_payment(inv_id, amount_paid, ref_num):
     conn.close()
     return {"success": True, "newBalance": new_balance, "newStatus": new_status}
 
+def save_gmail_thread(data):
+    conn = get_db()
+    cursor = conn.cursor()
+    thread_id = data.get('threadId', f"th-{int(datetime.now().timestamp())}")
+    cursor.execute('''
+    INSERT OR REPLACE INTO gmail_threads (
+        id, thread_id, subject, from_email, snippet, parsed_data_json, status, last_action, messages_json, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ''', (
+        data.get('id', f"gt-{thread_id}"),
+        thread_id,
+        data.get('subject', 'Rate Confirmation'),
+        data.get('fromEmail', ''),
+        data.get('snippet', ''),
+        json.dumps(data.get('parsedFreightData', {})),
+        data.get('status', 'unread'),
+        data.get('lastAction', 'synced'),
+        json.dumps(data.get('messages', [])),
+        datetime.now().isoformat()
+    ))
+    conn.commit()
+    conn.close()
+    return {"success": True, "threadId": thread_id}
+
+def get_gmail_threads():
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute('SELECT * FROM gmail_threads ORDER BY updated_at DESC')
+    rows = cursor.fetchall()
+    conn.close()
+    results = []
+    for row in rows:
+        item = dict(row)
+        if item.get('parsed_data_json'):
+            try: item['parsedFreightData'] = json.loads(item['parsed_data_json'])
+            except Exception: pass
+        if item.get('messages_json'):
+            try: item['messages'] = json.loads(item['messages_json'])
+            except Exception: pass
+        results.append(item)
+    return results
+
 def main():
     if len(sys.argv) < 2:
         print(json.dumps({"error": "No action"}))
@@ -157,6 +199,10 @@ def main():
         print(json.dumps(create_invoice(input_data)))
     elif action == 'record_payment':
         print(json.dumps(record_payment(input_data.get('invoiceId'), input_data.get('amount', 0), input_data.get('refNumber', ''))))
+    elif action == 'save_gmail_thread':
+        print(json.dumps(save_gmail_thread(input_data)))
+    elif action == 'get_gmail_threads':
+        print(json.dumps(get_gmail_threads()))
 
 if __name__ == '__main__':
     main()

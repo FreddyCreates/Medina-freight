@@ -338,27 +338,27 @@ export const ProjectManagementView: React.FC<ProjectManagementViewProps> = ({
 
   const getStatusBadgeColor = (status: ProjectStatus) => {
     switch (status) {
-      case 'booked': return 'text-slate-300 bg-slate-800 border-slate-700';
-      case 'in_transit': return 'text-amber-300 bg-amber-950/60 border-amber-700/50';
-      case 'delivered': return 'text-sky-300 bg-sky-950/60 border-sky-700/50';
-      case 'paperwork_scanned': return 'text-cyan-300 bg-cyan-950/60 border-cyan-700/50';
-      case 'invoiced': return 'text-purple-300 bg-purple-950/60 border-purple-700/50';
-      case 'paid': return 'text-emerald-300 bg-emerald-950/60 border-emerald-700/50';
+      case 'booked': return 'text-gray-700 bg-gray-100 border-gray-200';
+      case 'in_transit': return 'text-amber-800 bg-amber-50 border-amber-200';
+      case 'delivered': return 'text-blue-800 bg-blue-50 border-blue-200';
+      case 'paperwork_scanned': return 'text-cyan-800 bg-cyan-50 border-cyan-200';
+      case 'invoiced': return 'text-purple-800 bg-purple-50 border-purple-200';
+      case 'paid': return 'text-emerald-800 bg-emerald-50 border-emerald-200';
     }
   };
 
   const columns: ProjectStatus[] = ['booked', 'in_transit', 'delivered', 'paperwork_scanned', 'invoiced', 'paid'];
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-slate-950 overflow-hidden select-none">
+    <div className="flex-1 flex flex-col h-full bg-[#F5F5F7] overflow-hidden select-none">
       {/* Top Filter & Action Bar */}
-      <div className="px-6 py-4 border-b border-slate-800 bg-slate-900/60 flex flex-wrap items-center justify-between gap-4 shrink-0">
+      <div className="px-6 py-4 border-b border-gray-200 bg-white flex flex-wrap items-center justify-between gap-4 shrink-0 shadow-xs">
         <div>
-          <h1 className="text-base font-bold text-white tracking-tight flex items-center gap-2">
+          <h1 className="text-base font-bold text-gray-900 tracking-tight flex items-center gap-2">
             <span>Alvys TMS Dispatch & Load Management</span>
-            <span className="text-xs font-normal text-slate-400">· Real-time asset & brokerage operations</span>
+            <span className="text-xs font-normal text-gray-500">· Real-time asset & brokerage operations</span>
           </h1>
-          <p className="text-xs text-slate-400 mt-0.5">
+          <p className="text-xs text-gray-500 mt-0.5">
             Manage live freight loads, dispatch checkpoints, and automatic handoff to the 5-step billing pipeline.
           </p>
         </div>
@@ -366,22 +366,22 @@ export const ProjectManagementView: React.FC<ProjectManagementViewProps> = ({
         <div className="flex items-center gap-3">
           {/* Search Input */}
           <div className="relative">
-            <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
             <input
               type="text"
               placeholder="Search load, broker, driver..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-8 pr-3 py-1.5 bg-slate-900 border border-slate-700 rounded-lg text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-orange-500 w-56"
+              className="pl-8 pr-3 py-1.5 bg-white border border-gray-300 rounded-lg text-xs text-gray-950 placeholder-gray-400 focus:outline-none focus:border-[#007AFF] focus:ring-1 focus:ring-[#007AFF] w-56 transition-all"
             />
           </div>
 
           {/* View Toggle */}
-          <div className="flex items-center bg-slate-900 border border-slate-700 rounded-lg p-0.5 text-xs">
+          <div className="flex items-center bg-gray-100 border border-gray-200 rounded-lg p-0.5 text-xs">
             <button
               onClick={() => setViewMode('board')}
               className={`px-3 py-1 rounded-md font-medium cursor-pointer transition-colors ${
-                viewMode === 'board' ? 'bg-orange-600 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'
+                viewMode === 'board' ? 'bg-white text-gray-950 shadow-sm border border-gray-200' : 'text-gray-500 hover:text-gray-900'
               }`}
             >
               Kanban Board
@@ -389,7 +389,7 @@ export const ProjectManagementView: React.FC<ProjectManagementViewProps> = ({
             <button
               onClick={() => setViewMode('list')}
               className={`px-3 py-1 rounded-md font-medium cursor-pointer transition-colors ${
-                viewMode === 'list' ? 'bg-orange-600 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'
+                viewMode === 'list' ? 'bg-white text-gray-950 shadow-sm border border-gray-200' : 'text-gray-500 hover:text-gray-900'
               }`}
             >
               List Ledger
@@ -398,26 +398,26 @@ export const ProjectManagementView: React.FC<ProjectManagementViewProps> = ({
 
           {/* Rate Con OCR Parser Button */}
           <button
-            onClick={() => setShowRateConModal(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 border border-purple-500/40 rounded-lg text-xs font-semibold shadow-sm transition-colors cursor-pointer"
+              onClick={() => setShowRateConModal(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-[#F5F5F7] hover:bg-gray-200 text-gray-700 border border-gray-300 rounded-lg text-xs font-semibold shadow-xs transition-colors cursor-pointer"
           >
-            <Sparkles className="w-3.5 h-3.5 text-purple-400" />
+            <Sparkles className="w-3.5 h-3.5 text-purple-600" />
             <span>Upload Rate Con</span>
           </button>
 
           {/* Share Driver Portal */}
           <button
             onClick={() => setShowShareDriverModal(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-lg text-xs font-semibold transition-colors cursor-pointer"
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-gray-50 text-gray-700 border border-gray-300 rounded-lg text-xs font-semibold shadow-xs transition-colors cursor-pointer"
           >
-            <Smartphone className="w-3.5 h-3.5 text-purple-400" />
+            <Smartphone className="w-3.5 h-3.5 text-blue-600" />
             <span className="hidden sm:inline">Driver Mobile QR</span>
           </button>
 
           {/* Add Load Button */}
           <button
             onClick={() => setShowCreateModal(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-600 hover:bg-orange-500 text-white rounded-lg text-xs font-semibold shadow-sm transition-colors cursor-pointer"
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-[#007AFF] hover:bg-[#0066CC] text-white rounded-lg text-xs font-semibold shadow-xs transition-colors cursor-pointer"
           >
             <Plus className="w-3.5 h-3.5" />
             <span>New Load</span>
@@ -434,12 +434,12 @@ export const ProjectManagementView: React.FC<ProjectManagementViewProps> = ({
               {columns.map((colStatus) => {
                 const colProjects = filteredProjects.filter(p => p.status === colStatus);
                 return (
-                  <div key={colStatus} className="flex-1 min-w-[200px] flex flex-col bg-slate-900/40 rounded-xl border border-slate-800/80 p-3">
-                    <div className="flex items-center justify-between pb-2 mb-3 border-b border-slate-800/80">
-                      <span className="text-xs font-semibold text-slate-300">
+                  <div key={colStatus} className="flex-1 min-w-[200px] flex flex-col bg-white border border-gray-200 rounded-xl p-3 shadow-xs">
+                    <div className="flex items-center justify-between pb-2 mb-3 border-b border-gray-100">
+                      <span className="text-xs font-semibold text-gray-800">
                         {getStatusLabel(colStatus)}
                       </span>
-                      <span className="text-[11px] font-mono text-slate-400 tabular-nums">
+                      <span className="text-[11px] font-mono text-gray-500 font-bold tabular-nums">
                         {colProjects.length}
                       </span>
                     </div>
@@ -454,31 +454,31 @@ export const ProjectManagementView: React.FC<ProjectManagementViewProps> = ({
                             onClick={() => setSelectedProjectId(p.id)}
                             className={`p-3 rounded-lg border transition-all cursor-pointer text-left ${
                               isSelected
-                                ? 'bg-slate-850 border-orange-500 shadow-md ring-1 ring-orange-500/30'
-                                : 'bg-slate-900 border-slate-800 hover:border-slate-700'
+                                ? 'bg-gray-50 border-[#007AFF] shadow-sm ring-1 ring-[#007AFF]/30'
+                                : 'bg-white border-gray-200 hover:border-gray-300'
                             }`}
                           >
                             <div className="flex items-start justify-between gap-1 mb-1.5">
-                              <span className="text-xs font-bold text-white font-mono">
+                              <span className="text-xs font-bold text-gray-900 font-mono">
                                 {p.loadNumber}
                               </span>
-                              <span className="text-xs font-bold text-emerald-400 font-mono tabular-nums">
+                              <span className="text-xs font-bold text-emerald-600 font-mono tabular-nums">
                                 ${p.estimatedRevenue.toLocaleString()}
                               </span>
                             </div>
 
-                            <div className="text-xs text-slate-300 font-medium truncate mb-2">
+                            <div className="text-xs text-gray-800 font-medium truncate mb-2">
                               {p.customerName}
                             </div>
 
-                            <div className="text-[11px] text-slate-400 flex items-center gap-1 mb-2">
-                              <MapPin className="w-3 h-3 text-slate-500 shrink-0" />
+                            <div className="text-[11px] text-gray-500 flex items-center gap-1 mb-2">
+                              <MapPin className="w-3 h-3 text-gray-400 shrink-0" />
                               <span className="truncate">{p.originCity} → {p.destCity}</span>
                             </div>
 
-                            <div className="flex items-center justify-between pt-2 border-t border-slate-800 text-[11px] text-slate-400">
+                            <div className="flex items-center justify-between pt-2 border-t border-gray-100 text-[11px] text-gray-500">
                               <div className="flex items-center gap-1.5">
-                                <Truck className="w-3 h-3 text-slate-500" />
+                                <Truck className="w-3 h-3 text-gray-400" />
                                 <span>{p.driverName.split(' ')[0]}</span>
                               </div>
 
@@ -488,7 +488,7 @@ export const ProjectManagementView: React.FC<ProjectManagementViewProps> = ({
                                     <div
                                       key={u.id}
                                       title={`Active: ${u.name}`}
-                                      className={`w-4 h-4 rounded-full ${u.avatarBg} text-[8px] font-bold text-white flex items-center justify-center border border-slate-900`}
+                                      className={`w-4 h-4 rounded-full ${u.avatarBg} text-[8px] font-bold text-white flex items-center justify-center border border-white`}
                                     >
                                       {u.initials}
                                     </div>
@@ -500,7 +500,7 @@ export const ProjectManagementView: React.FC<ProjectManagementViewProps> = ({
                         );
                       })}
                       {colProjects.length === 0 && (
-                        <div className="h-24 flex items-center justify-center border border-dashed border-slate-800 rounded-lg text-[11px] text-slate-600">
+                        <div className="h-24 flex items-center justify-center border border-dashed border-gray-200 rounded-lg text-[11px] text-gray-400">
                           No loads
                         </div>
                       )}
@@ -511,9 +511,9 @@ export const ProjectManagementView: React.FC<ProjectManagementViewProps> = ({
             </div>
           ) : (
             /* List Table View */
-            <div className="border border-slate-800 rounded-xl overflow-hidden bg-slate-900/60">
-              <table className="w-full text-left text-xs text-slate-300">
-                <thead className="bg-slate-900 border-b border-slate-800 text-slate-400 font-medium">
+            <div className="border border-gray-200 rounded-xl overflow-hidden bg-white shadow-xs">
+              <table className="w-full text-left text-xs text-gray-700">
+                <thead className="bg-gray-50 border-b border-gray-200 text-gray-500 font-semibold">
                   <tr>
                     <th className="py-2.5 px-4">Load #</th>
                     <th className="py-2.5 px-4">Customer</th>
@@ -525,27 +525,27 @@ export const ProjectManagementView: React.FC<ProjectManagementViewProps> = ({
                     <th className="py-2.5 px-4">Action</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-800/60">
+                <tbody className="divide-y divide-gray-100">
                   {filteredProjects.map((p) => {
                     const isSelected = p.id === selectedProjectId;
                     return (
                       <tr
                         key={p.id}
                         onClick={() => setSelectedProjectId(p.id)}
-                        className={`hover:bg-slate-800/50 cursor-pointer transition-colors ${
-                          isSelected ? 'bg-orange-950/20' : ''
+                        className={`hover:bg-gray-50 cursor-pointer transition-colors ${
+                          isSelected ? 'bg-[#007AFF]/5' : ''
                         }`}
                       >
-                        <td className="py-2.5 px-4 font-mono font-bold text-white">{p.loadNumber}</td>
-                        <td className="py-2.5 px-4 text-slate-200 font-medium">{p.customerName}</td>
-                        <td className="py-2.5 px-4 text-slate-400">{p.originCity} → {p.destCity}</td>
-                        <td className="py-2.5 px-4 text-slate-300">{p.driverName} ({p.truckId})</td>
+                        <td className="py-2.5 px-4 font-mono font-bold text-gray-900">{p.loadNumber}</td>
+                        <td className="py-2.5 px-4 text-gray-800 font-medium">{p.customerName}</td>
+                        <td className="py-2.5 px-4 text-gray-500">{p.originCity} → {p.destCity}</td>
+                        <td className="py-2.5 px-4 text-gray-600">{p.driverName} ({p.truckId})</td>
                         <td className="py-2.5 px-4">
-                          <span className={`px-2 py-0.5 rounded text-[10px] font-medium border ${getStatusBadgeColor(p.status)}`}>
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-semibold border ${getStatusBadgeColor(p.status)}`}>
                             {getStatusLabel(p.status)}
                           </span>
                         </td>
-                        <td className="py-2.5 px-4 text-right font-mono font-semibold text-emerald-400 tabular-nums">
+                        <td className="py-2.5 px-4 text-right font-mono font-semibold text-emerald-600 tabular-nums">
                           ${p.estimatedRevenue.toLocaleString()}
                         </td>
                         <td className="py-2.5 px-4 text-center">
@@ -554,10 +554,10 @@ export const ProjectManagementView: React.FC<ProjectManagementViewProps> = ({
                               e.stopPropagation();
                               onOpenPDFSummaryModal(p);
                             }}
-                            className="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-orange-400 rounded text-[11px] font-semibold flex items-center gap-1 mx-auto cursor-pointer"
+                            className="px-2 py-1 bg-gray-100 hover:bg-gray-200 text-gray-800 border border-gray-300 rounded text-[11px] font-semibold flex items-center gap-1 mx-auto cursor-pointer"
                             title="Generate and download full PDF packet"
                           >
-                            <FileDown className="w-3 h-3" />
+                            <FileDown className="w-3 h-3 text-red-500" />
                             <span>PDF</span>
                           </button>
                         </td>
@@ -567,7 +567,7 @@ export const ProjectManagementView: React.FC<ProjectManagementViewProps> = ({
                               e.stopPropagation();
                               onNavigateToStep('scanner', p.id);
                             }}
-                            className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-blue-400 hover:text-blue-300 rounded text-xs font-semibold flex items-center gap-1 transition-colors cursor-pointer"
+                            className="px-2.5 py-1 bg-[#007AFF] hover:bg-[#0066CC] text-white rounded text-xs font-semibold flex items-center gap-1 transition-colors cursor-pointer"
                           >
                             <span>Workflow</span>
                             <ArrowRight className="w-3 h-3" />
@@ -584,17 +584,17 @@ export const ProjectManagementView: React.FC<ProjectManagementViewProps> = ({
 
         {/* Right Side: Selected Project Detail Panel */}
         {selectedProject && (
-          <div className="w-96 border-l border-slate-800 bg-slate-900/90 flex flex-col shrink-0 overflow-y-auto">
+          <div className="w-96 border-l border-gray-200 bg-white flex flex-col shrink-0 overflow-y-auto shadow-sm">
             {/* Header */}
-            <div className="p-4 border-b border-slate-800">
+            <div className="p-4 border-b border-gray-200">
               <div className="flex items-center justify-between mb-1.5">
-                <span className="text-xs font-mono font-bold text-orange-400">
+                <span className="text-xs font-mono font-bold text-[#007AFF]">
                   {selectedProject.code} · {selectedProject.loadNumber}
                 </span>
                 <select
                   value={selectedProject.status}
                   onChange={(e) => onUpdateProjectStatus(selectedProject.id, e.target.value as ProjectStatus)}
-                  className="bg-slate-800 border border-slate-700 text-xs text-slate-200 rounded px-2 py-1 focus:outline-none cursor-pointer"
+                  className="bg-gray-50 border border-gray-300 text-xs text-gray-900 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-[#007AFF] focus:border-[#007AFF] cursor-pointer"
                 >
                   <option value="booked">Booked</option>
                   <option value="in_transit">In Transit</option>
@@ -605,41 +605,41 @@ export const ProjectManagementView: React.FC<ProjectManagementViewProps> = ({
                 </select>
               </div>
 
-              <h2 className="text-sm font-bold text-white">
+              <h2 className="text-sm font-bold text-gray-900">
                 {selectedProject.customerName}
               </h2>
-              <div className="text-xs text-slate-400 mt-1 flex items-center gap-1">
-                <MapPin className="w-3.5 h-3.5 text-slate-500" />
+              <div className="text-xs text-gray-500 mt-1 flex items-center gap-1">
+                <MapPin className="w-3.5 h-3.5 text-gray-400" />
                 <span>{selectedProject.originCity}, {selectedProject.originState} → {selectedProject.destCity}, {selectedProject.destState}</span>
               </div>
             </div>
 
             {/* Quick PDF Summary Trigger Banner */}
-            <div className="p-3 bg-orange-950/30 border-b border-slate-800 flex items-center justify-between">
+            <div className="p-3 bg-blue-50/50 border-b border-gray-200 flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <FileDown className="w-4 h-4 text-orange-400" />
+                <FileDown className="w-4 h-4 text-[#007AFF]" />
                 <div>
-                  <span className="text-xs font-bold text-white block">Official Load Packet</span>
-                  <span className="text-[10px] text-slate-400">Includes invoice & OCR audit</span>
+                  <span className="text-xs font-bold text-gray-900 block">Official Load Packet</span>
+                  <span className="text-[10px] text-gray-500">Includes invoice & OCR audit</span>
                 </div>
               </div>
 
               <button
                 onClick={() => onOpenPDFSummaryModal(selectedProject)}
-                className="px-3 py-1 bg-orange-600 hover:bg-orange-500 text-white rounded-lg text-xs font-bold shadow-sm cursor-pointer transition-colors"
+                className="px-3 py-1 bg-[#007AFF] hover:bg-[#0066CC] text-white rounded-lg text-xs font-bold shadow-xs cursor-pointer transition-colors"
               >
                 Generate PDF
               </button>
             </div>
 
             {/* Google Calendar Sync Panel */}
-            <div className="p-3 bg-blue-950/30 border-b border-slate-800 space-y-2">
+            <div className="p-3 bg-gray-50/30 border-b border-gray-200 space-y-2">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <CalendarDays className="w-4 h-4 text-blue-400" />
+                  <CalendarDays className="w-4 h-4 text-blue-600" />
                   <div>
-                    <span className="text-xs font-bold text-white block">Google Calendar Events</span>
-                    <span className="text-[10px] text-slate-400">
+                    <span className="text-xs font-bold text-gray-900 block">Google Calendar Events</span>
+                    <span className="text-[10px] text-gray-500">
                       {selectedProject.googleCalendarPickupEventId ? 'Synced (Pickup & Delivery)' : 'Embedded Deep Links Ready'}
                     </span>
                   </div>
@@ -649,7 +649,7 @@ export const ProjectManagementView: React.FC<ProjectManagementViewProps> = ({
                   {onSyncCalendar && (
                     <button
                       onClick={() => onSyncCalendar(selectedProject)}
-                      className="px-2.5 py-1 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-bold shadow-sm cursor-pointer transition-colors"
+                      className="px-2.5 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold shadow-xs cursor-pointer transition-colors"
                     >
                       Sync Now
                     </button>
@@ -657,7 +657,7 @@ export const ProjectManagementView: React.FC<ProjectManagementViewProps> = ({
                   {onNavigateToCalendarSync && (
                     <button
                       onClick={onNavigateToCalendarSync}
-                      className="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-blue-400 rounded-lg text-xs font-medium cursor-pointer"
+                      className="px-2 py-1 bg-gray-100 hover:bg-gray-200 text-blue-600 rounded-lg text-xs font-medium cursor-pointer"
                     >
                       Calendar
                     </button>
@@ -666,12 +666,12 @@ export const ProjectManagementView: React.FC<ProjectManagementViewProps> = ({
               </div>
 
               {/* Event Links */}
-              <div className="flex items-center justify-between text-[11px] pt-1 border-t border-slate-800/80">
+              <div className="flex items-center justify-between text-[11px] pt-1 border-t border-gray-100">
                 <a
                   href={selectedProject.googleCalendarPickupLink || `https://calendar.google.com/calendar/r/eventedit?text=${encodeURIComponent(`🚛 PICKUP: Load #${selectedProject.loadNumber} - ${selectedProject.customerName}`)}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-blue-400 hover:text-blue-300 flex items-center gap-1 font-medium"
+                  className="text-blue-600 hover:text-blue-700 flex items-center gap-1 font-semibold"
                 >
                   <span>Pickup: {selectedProject.pickupDate}</span>
                   <ExternalLink className="w-3 h-3" />
@@ -681,7 +681,7 @@ export const ProjectManagementView: React.FC<ProjectManagementViewProps> = ({
                   href={selectedProject.googleCalendarDeliveryLink || `https://calendar.google.com/calendar/r/eventedit?text=${encodeURIComponent(`📦 DELIVERY: Load #${selectedProject.loadNumber} - ${selectedProject.destCity}`)}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-purple-400 hover:text-purple-300 flex items-center gap-1 font-medium"
+                  className="text-purple-600 hover:text-purple-700 flex items-center gap-1 font-semibold"
                 >
                   <span>Delivery: {selectedProject.deliveryDate}</span>
                   <ExternalLink className="w-3 h-3" />
@@ -690,15 +690,15 @@ export const ProjectManagementView: React.FC<ProjectManagementViewProps> = ({
             </div>
 
             {/* Real Driver Dispatch & Commercial Communications */}
-            <div className="p-3 bg-purple-950/20 border-b border-slate-800 space-y-2.5">
+            <div className="p-3 bg-[#F5F5F7] border-b border-gray-200 space-y-2.5">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <div className="w-7 h-7 rounded-lg bg-purple-600/20 border border-purple-500/30 flex items-center justify-center text-purple-400">
+                  <div className="w-7 h-7 rounded-lg bg-blue-50 border border-blue-200 flex items-center justify-center text-blue-600">
                     <Truck className="w-4 h-4" />
                   </div>
                   <div>
-                    <span className="text-xs font-bold text-white block">Driver Dispatch Order</span>
-                    <span className="text-[10px] text-purple-300 font-mono">
+                    <span className="text-xs font-bold text-gray-900 block">Driver Dispatch Order</span>
+                    <span className="text-[10px] text-gray-500 font-medium">
                       {assignedDriver ? `${assignedDriver.name} · Unit #${assignedDriver.assignedTruckNumber}` : selectedProject.driverName}
                     </span>
                   </div>
@@ -706,7 +706,7 @@ export const ProjectManagementView: React.FC<ProjectManagementViewProps> = ({
 
                 <button
                   onClick={() => onNavigateToStep('driver', selectedProject.id)}
-                  className="px-2 py-1 rounded bg-purple-600 hover:bg-purple-500 text-white text-[11px] font-bold flex items-center gap-1 shadow-sm cursor-pointer transition-colors"
+                  className="px-2 py-1 rounded bg-[#007AFF] hover:bg-[#0066CC] text-white text-[11px] font-bold flex items-center gap-1 shadow-xs cursor-pointer transition-colors"
                   title="Open Driver Mobile Portal for this load"
                 >
                   <Smartphone className="w-3 h-3" />
@@ -715,17 +715,17 @@ export const ProjectManagementView: React.FC<ProjectManagementViewProps> = ({
               </div>
 
               {assignedDriver && (
-                <div className="p-2 rounded-lg bg-slate-950/60 border border-slate-800 text-[11px] space-y-1">
-                  <div className="flex items-center justify-between text-slate-300">
+                <div className="p-2.5 rounded-lg bg-white border border-gray-200 text-[11px] space-y-1.5 shadow-2xs">
+                  <div className="flex items-center justify-between text-gray-700">
                     <span className="flex items-center gap-1">
-                      <Phone className="w-3 h-3 text-slate-400" />
-                      <a href={`tel:${assignedDriver.phone}`} className="hover:text-purple-400 font-mono text-[10px]">{assignedDriver.phone}</a>
+                      <Phone className="w-3 h-3 text-gray-400" />
+                      <a href={`tel:${assignedDriver.phone}`} className="hover:text-blue-600 font-mono text-[10px] font-semibold">{assignedDriver.phone}</a>
                     </span>
-                    <span className="text-slate-400 text-[10px]">CDL: {assignedDriver.cdlNumber}</span>
+                    <span className="text-gray-500 text-[10px]">CDL: {assignedDriver.cdlNumber}</span>
                   </div>
-                  <div className="flex items-center justify-between text-slate-400 text-[10px]">
+                  <div className="flex items-center justify-between text-gray-600 text-[10px]">
                     <span>Trailer: #{assignedDriver.assignedTrailerNumber}</span>
-                    <span className="text-emerald-400 font-bold font-mono">Driver Pay: ${(selectedProject.estimatedRevenue * 0.65).toFixed(2)}</span>
+                    <span className="text-emerald-700 font-bold font-mono">Driver Pay: ${(selectedProject.estimatedRevenue * 0.65).toFixed(2)}</span>
                   </div>
                 </div>
               )}
@@ -734,17 +734,17 @@ export const ProjectManagementView: React.FC<ProjectManagementViewProps> = ({
               <div className="grid grid-cols-2 gap-2">
                 <button
                   onClick={() => handleDownloadDispatchSheet(selectedProject)}
-                  className="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                  className="px-2.5 py-1.5 rounded-lg bg-white hover:bg-gray-50 text-gray-700 border border-gray-300 text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
                   title="Download Carrier Driver Dispatch & Rate Confirmation Sheet"
                 >
-                  <FileDown className="w-3.5 h-3.5 text-purple-400" />
+                  <FileDown className="w-3.5 h-3.5 text-blue-600" />
                   <span>Dispatch PDF</span>
                 </button>
 
                 <button
                   onClick={() => handleEmailDispatchSheet(selectedProject)}
                   disabled={isSendingDispatchEmail}
-                  className="px-2.5 py-1.5 rounded-lg bg-purple-700 hover:bg-purple-600 disabled:opacity-50 text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow-sm transition-colors cursor-pointer"
+                  className="px-2.5 py-1.5 rounded-lg bg-gray-900 hover:bg-gray-800 disabled:opacity-50 text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow-xs transition-colors cursor-pointer"
                   title="Send Rate & Dispatch Sheet to Driver via Gmail"
                 >
                   <Mail className="w-3.5 h-3.5" />
@@ -754,32 +754,32 @@ export const ProjectManagementView: React.FC<ProjectManagementViewProps> = ({
             </div>
 
             {/* Quick Financial & Fleet Specs */}
-            <div className="p-4 border-b border-slate-800 grid grid-cols-2 gap-3 text-xs bg-slate-950/30">
+            <div className="p-4 border-b border-gray-200 grid grid-cols-2 gap-3 text-xs bg-gray-50/50">
               <div>
-                <span className="text-[10px] text-slate-400 block uppercase">Est. Revenue</span>
-                <span className="font-mono font-bold text-emerald-400 text-sm tabular-nums">
+                <span className="text-[10px] text-gray-500 block uppercase font-semibold">Est. Revenue</span>
+                <span className="font-mono font-bold text-emerald-600 text-sm tabular-nums">
                   ${selectedProject.estimatedRevenue.toLocaleString()}
                 </span>
               </div>
               <div>
-                <span className="text-[10px] text-slate-400 block uppercase">Equipment</span>
-                <span className="text-slate-200 font-medium">{selectedProject.equipmentType}</span>
+                <span className="text-[10px] text-gray-500 block uppercase font-semibold">Equipment</span>
+                <span className="text-gray-800 font-medium">{selectedProject.equipmentType}</span>
               </div>
               <div>
-                <span className="text-[10px] text-slate-400 block uppercase">Driver</span>
-                <span className="text-slate-200">{selectedProject.driverName}</span>
+                <span className="text-[10px] text-gray-500 block uppercase font-semibold">Driver</span>
+                <span className="text-gray-800 font-medium">{selectedProject.driverName}</span>
               </div>
               <div>
-                <span className="text-[10px] text-slate-400 block uppercase">Weight / Cargo</span>
-                <span className="text-slate-200 font-mono tabular-nums">{selectedProject.weightLbs.toLocaleString()} lbs</span>
+                <span className="text-[10px] text-gray-500 block uppercase font-semibold">Weight / Cargo</span>
+                <span className="text-gray-800 font-mono font-semibold tabular-nums">{selectedProject.weightLbs.toLocaleString()} lbs</span>
               </div>
             </div>
 
             {/* Task Checklist */}
-            <div className="p-4 border-b border-slate-800">
+            <div className="p-4 border-b border-gray-200">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-semibold text-slate-300">Checklist & Tasks</span>
-                <span className="text-[11px] text-slate-400 font-mono">
+                <span className="text-xs font-semibold text-gray-800">Checklist & Tasks</span>
+                <span className="text-[11px] text-gray-500 font-mono font-bold">
                   {selectedProject.tasks.filter(t => t.completed).length}/{selectedProject.tasks.length} Done
                 </span>
               </div>
@@ -789,14 +789,14 @@ export const ProjectManagementView: React.FC<ProjectManagementViewProps> = ({
                   <div
                     key={task.id}
                     onClick={() => onToggleTask(selectedProject.id, task.id)}
-                    className="flex items-start gap-2 p-1.5 rounded hover:bg-slate-800/50 cursor-pointer text-xs"
+                    className="flex items-start gap-2 p-1.5 rounded hover:bg-gray-50 cursor-pointer text-xs"
                   >
                     {task.completed ? (
-                      <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+                      <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
                     ) : (
-                      <Circle className="w-4 h-4 text-slate-500 shrink-0 mt-0.5" />
+                      <Circle className="w-4 h-4 text-gray-400 shrink-0 mt-0.5" />
                     )}
-                    <span className={`text-xs ${task.completed ? 'text-slate-500 line-through' : 'text-slate-300'}`}>
+                    <span className={`text-xs ${task.completed ? 'text-gray-400 line-through' : 'text-gray-700'}`}>
                       {task.title}
                     </span>
                   </div>
@@ -805,31 +805,31 @@ export const ProjectManagementView: React.FC<ProjectManagementViewProps> = ({
             </div>
 
             {/* Realtime Team Coordination & Comments Feed */}
-            <div className="flex-1 flex flex-col p-4">
+            <div className="flex-1 flex flex-col p-4 bg-white">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
-                  <MessageSquare className="w-3.5 h-3.5 text-orange-400" />
+                <span className="text-xs font-semibold text-gray-800 flex items-center gap-1.5">
+                  <MessageSquare className="w-3.5 h-3.5 text-blue-600" />
                   <span>Team Activity & Notes</span>
                 </span>
-                <span className="text-[10px] text-emerald-400 flex items-center gap-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                <span className="text-[10px] text-emerald-600 font-bold flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
                   Live Sync
                 </span>
               </div>
 
               <div className="flex-1 space-y-3 overflow-y-auto mb-3 pr-1 max-h-56">
                 {selectedProject.comments.map((comment) => (
-                  <div key={comment.id} className="bg-slate-950/60 rounded-lg p-2.5 border border-slate-800/80 text-xs">
+                  <div key={comment.id} className="bg-gray-50 rounded-lg p-2.5 border border-gray-200 text-xs shadow-2xs">
                     <div className="flex items-center justify-between mb-1">
                       <div className="flex items-center gap-1.5">
                         <div className={`w-4 h-4 rounded-full ${comment.avatarBg} text-white font-bold text-[8px] flex items-center justify-center`}>
                           {comment.userName.charAt(0)}
                         </div>
-                        <span className="font-semibold text-slate-200">{comment.userName}</span>
+                        <span className="font-semibold text-gray-800">{comment.userName}</span>
                       </div>
-                      <span className="text-[10px] text-slate-500">{comment.timestamp}</span>
+                      <span className="text-[10px] text-gray-400">{comment.timestamp}</span>
                     </div>
-                    <p className="text-slate-300 text-[11px] leading-relaxed pl-5">
+                    <p className="text-gray-700 text-[11px] leading-relaxed pl-5">
                       {comment.text}
                     </p>
                   </div>
@@ -843,12 +843,12 @@ export const ProjectManagementView: React.FC<ProjectManagementViewProps> = ({
                   placeholder="Add note for billing or dispatch..."
                   value={newCommentText}
                   onChange={(e) => setNewCommentText(e.target.value)}
-                  className="flex-1 px-3 py-1.5 bg-slate-950 border border-slate-700 rounded-lg text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-orange-500"
+                  className="flex-1 px-3 py-1.5 bg-white border border-gray-300 rounded-lg text-xs text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-[#007AFF] focus:border-[#007AFF]"
                 />
                 <button
                   type="submit"
                   disabled={!newCommentText.trim()}
-                  className="px-3 py-1.5 bg-orange-600 hover:bg-orange-500 disabled:opacity-40 text-white rounded-lg text-xs font-semibold cursor-pointer transition-colors"
+                  className="px-3 py-1.5 bg-[#007AFF] hover:bg-[#0066CC] disabled:opacity-40 text-white rounded-lg text-xs font-semibold cursor-pointer transition-colors"
                 >
                   <Send className="w-3 h-3" />
                 </button>
@@ -860,32 +860,32 @@ export const ProjectManagementView: React.FC<ProjectManagementViewProps> = ({
 
       {/* New Load / Project Modal */}
       {showCreateModal && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-xs flex items-center justify-center z-50 p-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-xl max-w-lg w-full p-6 shadow-2xl">
-            <h3 className="text-base font-bold text-white mb-1">Create New Freight Load</h3>
-            <p className="text-xs text-slate-400 mb-4">
+        <div className="fixed inset-0 bg-gray-900/40 backdrop-blur-xs flex items-center justify-center z-50 p-4">
+          <div className="bg-white border border-gray-200 rounded-xl max-w-lg w-full p-6 shadow-2xl">
+            <h3 className="text-base font-bold text-gray-900 mb-1">Create New Freight Load</h3>
+            <p className="text-xs text-gray-500 mb-4">
               Enter freight details. Foundry AI will auto-bind paperwork and monitor transit.
             </p>
 
             <form onSubmit={handleCreateProjectSubmit} className="space-y-4">
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-medium text-slate-300 mb-1">Load / PO Number *</label>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1">Load / PO Number *</label>
                   <input
                     type="text"
                     required
                     placeholder="e.g. CHR-994102 or LD-4019"
                     value={newLoadNo}
                     onChange={(e) => setNewLoadNo(e.target.value)}
-                    className="w-full px-3 py-1.5 bg-slate-950 border border-slate-700 rounded-lg text-xs text-white focus:outline-none focus:border-orange-500"
+                    className="w-full px-3 py-1.5 bg-white border border-gray-300 rounded-lg text-xs text-gray-900 focus:outline-none focus:border-[#007AFF] focus:ring-1 focus:ring-[#007AFF]"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-slate-300 mb-1">Customer / Broker</label>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1">Customer / Broker</label>
                   <select
                     value={newCustomer}
                     onChange={(e) => setNewCustomer(e.target.value)}
-                    className="w-full px-3 py-1.5 bg-slate-950 border border-slate-700 rounded-lg text-xs text-white focus:outline-none"
+                    className="w-full px-3 py-1.5 bg-white border border-gray-300 rounded-lg text-xs text-gray-900 focus:outline-none focus:border-[#007AFF] focus:ring-1 focus:ring-[#007AFF]"
                   >
                     <option value="C.H. Robinson Worldwide">C.H. Robinson Worldwide</option>
                     <option value="Total Quality Logistics (TQL)">Total Quality Logistics (TQL)</option>
@@ -898,7 +898,7 @@ export const ProjectManagementView: React.FC<ProjectManagementViewProps> = ({
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-medium text-slate-300 mb-1">Origin City & State *</label>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1">Origin City & State *</label>
                   <div className="flex gap-2">
                     <input
                       type="text"
@@ -906,19 +906,19 @@ export const ProjectManagementView: React.FC<ProjectManagementViewProps> = ({
                       placeholder="City (e.g. Chicago)"
                       value={newOriginCity}
                       onChange={(e) => setNewOriginCity(e.target.value)}
-                      className="flex-1 px-3 py-1.5 bg-slate-950 border border-slate-700 rounded-lg text-xs text-white"
+                      className="flex-1 px-3 py-1.5 bg-white border border-gray-300 rounded-lg text-xs text-gray-900"
                     />
                     <input
                       type="text"
                       placeholder="IL"
                       value={newOriginState}
                       onChange={(e) => setNewOriginState(e.target.value.toUpperCase())}
-                      className="w-14 px-2 py-1.5 bg-slate-950 border border-slate-700 rounded-lg text-xs text-white uppercase text-center"
+                      className="w-14 px-2 py-1.5 bg-white border border-gray-300 rounded-lg text-xs text-gray-900 uppercase text-center font-semibold"
                     />
                   </div>
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-slate-300 mb-1">Destination City & State *</label>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1">Destination City & State *</label>
                   <div className="flex gap-2">
                     <input
                       type="text"
@@ -926,14 +926,14 @@ export const ProjectManagementView: React.FC<ProjectManagementViewProps> = ({
                       placeholder="City (e.g. Dallas)"
                       value={newDestCity}
                       onChange={(e) => setNewDestCity(e.target.value)}
-                      className="flex-1 px-3 py-1.5 bg-slate-950 border border-slate-700 rounded-lg text-xs text-white"
+                      className="flex-1 px-3 py-1.5 bg-white border border-gray-300 rounded-lg text-xs text-gray-900"
                     />
                     <input
                       type="text"
                       placeholder="TX"
                       value={newDestState}
                       onChange={(e) => setNewDestState(e.target.value.toUpperCase())}
-                      className="w-14 px-2 py-1.5 bg-slate-950 border border-slate-700 rounded-lg text-xs text-white uppercase text-center"
+                      className="w-14 px-2 py-1.5 bg-white border border-gray-300 rounded-lg text-xs text-gray-900 uppercase text-center font-semibold"
                     />
                   </div>
                 </div>
@@ -941,11 +941,11 @@ export const ProjectManagementView: React.FC<ProjectManagementViewProps> = ({
 
               <div className="grid grid-cols-3 gap-3">
                 <div>
-                  <label className="block text-xs font-medium text-slate-300 mb-1">Assigned Driver</label>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1">Assigned Driver</label>
                   <select
                     value={newDriver}
                     onChange={(e) => setNewDriver(e.target.value)}
-                    className="w-full px-3 py-1.5 bg-slate-950 border border-slate-700 rounded-lg text-xs text-white"
+                    className="w-full px-3 py-1.5 bg-white border border-gray-300 rounded-lg text-xs text-gray-900"
                   >
                     {drivers.map(d => (
                       <option key={d.id} value={d.name}>
@@ -957,20 +957,20 @@ export const ProjectManagementView: React.FC<ProjectManagementViewProps> = ({
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-slate-300 mb-1">Revenue ($)</label>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1">Revenue ($)</label>
                   <input
                     type="number"
                     value={newRevenue}
                     onChange={(e) => setNewRevenue(Number(e.target.value))}
-                    className="w-full px-3 py-1.5 bg-slate-950 border border-slate-700 rounded-lg text-xs text-white font-mono"
+                    className="w-full px-3 py-1.5 bg-white border border-gray-300 rounded-lg text-xs text-gray-900 font-mono"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-slate-300 mb-1">Equipment</label>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1">Equipment</label>
                   <select
                     value={newEquipment}
                     onChange={(e) => setNewEquipment(e.target.value as any)}
-                    className="w-full px-3 py-1.5 bg-slate-950 border border-slate-700 rounded-lg text-xs text-white"
+                    className="w-full px-3 py-1.5 bg-white border border-gray-300 rounded-lg text-xs text-gray-900"
                   >
                     <option value="53ft Reefer">53ft Reefer</option>
                     <option value="53ft Dry Van">53ft Dry Van</option>
@@ -979,17 +979,17 @@ export const ProjectManagementView: React.FC<ProjectManagementViewProps> = ({
                 </div>
               </div>
 
-              <div className="flex justify-end gap-2 pt-4 border-t border-slate-800">
+              <div className="flex justify-end gap-2 pt-4 border-t border-gray-200">
                 <button
                   type="button"
                   onClick={() => setShowCreateModal(false)}
-                  className="px-4 py-2 bg-slate-800 hover:bg-slate-750 text-slate-300 rounded-lg text-xs font-medium cursor-pointer"
+                  className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-300 rounded-lg text-xs font-medium cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-orange-600 hover:bg-orange-500 text-white rounded-lg text-xs font-semibold cursor-pointer"
+                  className="px-4 py-2 bg-[#007AFF] hover:bg-[#0066CC] text-white rounded-lg text-xs font-semibold cursor-pointer"
                 >
                   Create Load
                 </button>
@@ -998,23 +998,24 @@ export const ProjectManagementView: React.FC<ProjectManagementViewProps> = ({
           </div>
         </div>
       )}
+
       {/* Rate Confirmation OCR Upload & Ingest Modal */}
       {showRateConModal && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-xl w-full p-6 space-y-5 shadow-2xl">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+        <div className="fixed inset-0 z-50 bg-gray-900/40 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white border border-gray-200 rounded-2xl max-w-xl w-full p-6 space-y-5 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-gray-200 pb-3">
               <div className="flex items-center gap-2.5">
-                <div className="p-2 rounded-xl bg-purple-500/20 text-purple-400 border border-purple-500/30">
+                <div className="p-2 rounded-xl bg-purple-50 text-purple-600 border border-purple-200">
                   <Sparkles className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="text-base font-bold text-white">Import Real Broker Rate Confirmation</h3>
-                  <p className="text-xs text-slate-400">Upload PDF/photo or paste email text to create live load with AI OCR.</p>
+                  <h3 className="text-base font-bold text-gray-900">Import Real Broker Rate Confirmation</h3>
+                  <p className="text-xs text-gray-500">Upload PDF/photo or paste email text to create live load with AI OCR.</p>
                 </div>
               </div>
               <button 
                 onClick={() => setShowRateConModal(false)}
-                className="text-slate-400 hover:text-white text-lg p-1"
+                className="text-gray-400 hover:text-gray-900 text-lg p-1"
               >
                 ✕
               </button>
@@ -1022,13 +1023,13 @@ export const ProjectManagementView: React.FC<ProjectManagementViewProps> = ({
 
             {/* Option 1: File Upload (PDF or Image) */}
             <div className="space-y-2">
-              <span className="text-xs font-bold text-slate-300 uppercase tracking-wider block">
+              <span className="text-xs font-bold text-gray-500 uppercase tracking-wider block">
                 Option 1: Upload Broker Rate Con PDF / Photo
               </span>
-              <label className="border-2 border-dashed border-purple-500/40 hover:border-purple-500/80 bg-purple-950/10 hover:bg-purple-950/20 rounded-xl p-6 text-center block cursor-pointer transition-all">
-                <FileText className="w-8 h-8 text-purple-400 mx-auto mb-2" />
-                <span className="text-xs font-bold text-white block">Drop Rate Con PDF or Image Here</span>
-                <span className="text-[11px] text-slate-400 block mt-0.5">Supports PDF, JPG, PNG from C.H. Robinson, TQL, Echo, Landstar</span>
+              <label className="border-2 border-dashed border-purple-300 hover:border-purple-500 bg-purple-50/10 hover:bg-purple-50/20 rounded-xl p-6 text-center block cursor-pointer transition-all">
+                <FileText className="w-8 h-8 text-purple-600 mx-auto mb-2" />
+                <span className="text-xs font-bold text-gray-900 block">Drop Rate Con PDF or Image Here</span>
+                <span className="text-[11px] text-gray-500 block mt-0.5">Supports PDF, JPG, PNG from C.H. Robinson, TQL, Echo, Landstar</span>
                 <input
                   type="file"
                   accept=".pdf,image/*"
@@ -1039,8 +1040,8 @@ export const ProjectManagementView: React.FC<ProjectManagementViewProps> = ({
             </div>
 
             {/* Option 2: Paste Rate Con Email Text */}
-            <form onSubmit={handleRateConTextSubmit} className="space-y-3 pt-3 border-t border-slate-800">
-              <span className="text-xs font-bold text-slate-300 uppercase tracking-wider block">
+            <form onSubmit={handleRateConTextSubmit} className="space-y-3 pt-3 border-t border-gray-200">
+              <span className="text-xs font-bold text-gray-500 uppercase tracking-wider block">
                 Option 2: Or Paste Rate Con Email / Tender Text
               </span>
               <textarea
@@ -1048,21 +1049,21 @@ export const ProjectManagementView: React.FC<ProjectManagementViewProps> = ({
                 placeholder="Paste rate con text (e.g. Load # 981240, C.H. Robinson, Aurora IL to Dallas TX, Rate: $3,650, 53ft Reefer 34F)..."
                 value={rateConRawText}
                 onChange={(e) => setRateConRawText(e.target.value)}
-                className="w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-purple-500 font-mono"
+                className="w-full bg-white border border-gray-300 rounded-xl p-3 text-xs text-gray-900 focus:outline-none focus:border-[#007AFF] focus:ring-1 focus:ring-[#007AFF] font-mono"
               />
 
               <div className="flex justify-end gap-2">
                 <button
                   type="button"
                   onClick={() => setShowRateConModal(false)}
-                  className="px-4 py-2 bg-slate-800 text-slate-300 rounded-xl text-xs font-medium"
+                  className="px-4 py-2 bg-gray-100 text-gray-700 border border-gray-300 rounded-xl text-xs font-medium"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={isParsingRateCon || !rateConRawText.trim()}
-                  className="px-5 py-2 bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white rounded-xl text-xs font-bold flex items-center gap-2 shadow-lg shadow-purple-900/30"
+                  className="px-5 py-2 bg-[#007AFF] hover:bg-[#0066CC] disabled:opacity-50 text-white rounded-xl text-xs font-bold flex items-center gap-2 shadow-xs"
                 >
                   <Sparkles className="w-4 h-4" />
                   <span>{isParsingRateCon ? 'Parsing Rate Con...' : 'Parse & Create Live Load'}</span>
@@ -1075,38 +1076,38 @@ export const ProjectManagementView: React.FC<ProjectManagementViewProps> = ({
 
       {/* Share Driver Portal Modal */}
       {showShareDriverModal && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+        <div className="fixed inset-0 z-50 bg-gray-900/40 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white border border-gray-200 rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-gray-200 pb-3">
               <div className="flex items-center gap-2.5">
-                <div className="p-2 rounded-xl bg-purple-500/20 text-purple-400 border border-purple-500/30">
+                <div className="p-2 rounded-xl bg-blue-50 text-blue-600 border border-blue-200">
                   <Smartphone className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="text-base font-bold text-white">Driver POD Camera Portal</h3>
-                  <p className="text-xs text-slate-400">Open live camera on driver phone to scan signed BOLs.</p>
+                  <h3 className="text-base font-bold text-gray-900">Driver POD Camera Portal</h3>
+                  <p className="text-xs text-gray-500">Open live camera on driver phone to scan signed BOLs.</p>
                 </div>
               </div>
               <button 
                 onClick={() => setShowShareDriverModal(false)}
-                className="text-slate-400 hover:text-white text-lg p-1"
+                className="text-gray-400 hover:text-gray-900 text-lg p-1"
               >
                 ✕
               </button>
             </div>
 
-            <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 space-y-3 text-center">
-              <div className="w-12 h-12 rounded-xl bg-blue-600/20 text-blue-400 border border-blue-500/30 mx-auto flex items-center justify-center">
+            <div className="p-4 rounded-xl bg-gray-50 border border-gray-200 space-y-3 text-center shadow-2xs">
+              <div className="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 border border-blue-200 mx-auto flex items-center justify-center">
                 <Smartphone className="w-6 h-6" />
               </div>
               <div>
-                <span className="text-xs font-bold text-white block">Driver Web Portal Link</span>
-                <p className="text-[11px] text-slate-400 mt-1">
+                <span className="text-xs font-bold text-gray-900 block">Driver Web Portal Link</span>
+                <p className="text-[11px] text-gray-500 mt-1">
                   Drivers open this link on their iPhone or Android to access the live camera and submit signed PODs directly to dispatch.
                 </p>
               </div>
 
-              <div className="p-2.5 rounded-lg bg-slate-900 border border-slate-800 text-[11px] font-mono text-purple-300 break-all select-all">
+              <div className="p-2.5 rounded-lg bg-white border border-gray-200 text-[11px] font-mono text-blue-600 break-all select-all">
                 {window.location.origin}?tab=driver
               </div>
 
@@ -1116,7 +1117,7 @@ export const ProjectManagementView: React.FC<ProjectManagementViewProps> = ({
                   navigator.clipboard.writeText(`${window.location.origin}?tab=driver`);
                   showToast('📋 Copied Driver Portal Link to clipboard!');
                 }}
-                className="w-full py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2"
+                className="w-full py-2 bg-[#007AFF] hover:bg-[#0066CC] text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 shadow-xs"
               >
                 <span>Copy Mobile Link for Drivers</span>
               </button>
@@ -1126,7 +1127,7 @@ export const ProjectManagementView: React.FC<ProjectManagementViewProps> = ({
               <button
                 type="button"
                 onClick={() => setShowShareDriverModal(false)}
-                className="px-4 py-2 bg-slate-800 text-slate-300 rounded-xl text-xs font-medium"
+                className="px-4 py-2 bg-gray-100 text-gray-700 border border-gray-300 rounded-xl text-xs font-medium cursor-pointer"
               >
                 Close
               </button>
@@ -1135,7 +1136,7 @@ export const ProjectManagementView: React.FC<ProjectManagementViewProps> = ({
         </div>
       )}
       {toastMessage && (
-        <div className="fixed bottom-6 right-6 z-50 bg-slate-900 border border-purple-500/50 text-white text-xs px-4 py-3 rounded-xl shadow-2xl flex items-center gap-2 animate-in fade-in slide-in-from-bottom-2">
+        <div className="fixed bottom-6 right-6 z-50 bg-gray-900 text-white text-xs px-4 py-3 rounded-xl shadow-2xl flex items-center gap-2 animate-in fade-in slide-in-from-bottom-2">
           <Check className="w-4 h-4 text-emerald-400 shrink-0" />
           <span>{toastMessage}</span>
         </div>
