@@ -1,0 +1,6 @@
+{
+  "name": "Apex Fleet TMS - Carrier & Freight Operations System",
+  "description": "Production freight carrier and fleet transportation management system (TMS) for managing power units, trailers, CDL drivers, dispatch matrix, Google Workspace integration, FMCSA carrier compliance, live telematics, freight invoicing, and agentic inbox triage.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
