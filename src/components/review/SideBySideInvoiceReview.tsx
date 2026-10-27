@@ -20,8 +20,11 @@ import {
   FileText,
   History,
   DollarSign,
-  Stamp
+  Stamp,
+  Download
 } from 'lucide-react';
+import { generateCarrierInvoicePDF } from '../../services/pdfGenerator';
+import { DEFAULT_COMPANY_PROFILE } from '../../data/realFleetData';
 
 interface SideBySideInvoiceReviewProps {
   invoices: ProposedInvoice[];
@@ -116,7 +119,7 @@ export const SideBySideInvoiceReview: React.FC<SideBySideInvoiceReviewProps> = (
     // Log correction if value changed significantly
     if (field === 'amount' && oldValue !== Number(value)) {
       updated.correctionsLog = [
-        ...updated.correctionsLog,
+        ...(updated.correctionsLog || []),
         {
           field: `Line item #${index + 1} (${oldItem.description})`,
           oldValue: `$${Number(oldValue).toFixed(2)}`,
@@ -210,7 +213,7 @@ export const SideBySideInvoiceReview: React.FC<SideBySideInvoiceReviewProps> = (
             className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-750 text-slate-300 border border-slate-700 rounded-lg text-xs font-medium cursor-pointer transition-colors"
           >
             <History className="w-3.5 h-3.5 text-slate-400" />
-            <span>Audit Log ({currentInvoice.correctionsLog.length})</span>
+            <span>Audit Log ({currentInvoice.correctionsLog?.length || 0})</span>
           </button>
 
           <button
@@ -636,6 +639,13 @@ export const SideBySideInvoiceReview: React.FC<SideBySideInvoiceReviewProps> = (
 
             {/* Action Buttons */}
             <div className="pt-2 flex items-center justify-end gap-3">
+              <button
+                onClick={() => generateCarrierInvoicePDF(currentInvoice, DEFAULT_COMPANY_PROFILE, currentProject)}
+                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 cursor-pointer transition-colors shadow-sm"
+              >
+                <Download className="w-4 h-4" />
+                <span>Download PDF</span>
+              </button>
               <button
                 onClick={() => onNavigateToStep('scanner', currentInvoice.projectId)}
                 className="px-4 py-2 bg-slate-800 hover:bg-slate-750 text-slate-300 rounded-lg text-xs font-semibold cursor-pointer transition-colors"

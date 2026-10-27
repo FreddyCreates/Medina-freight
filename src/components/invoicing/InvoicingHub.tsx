@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { 
   ProposedInvoice, 
   Project,
   CompanyProfile,
   InvoiceLineItem,
   ScannedDocument,
-  DocumentType
+  FreightEstimate
 } from '../../types';
 import { 
   ReceiptText, 
@@ -37,14 +37,19 @@ import {
   FolderInput,
   Layers,
   Laptop,
-  Wifi,
   CheckSquare,
   Zap,
   ArrowUpRight,
   ChevronRight,
   ExternalLink,
-  FileCode,
-  FileSpreadsheet
+  FileSpreadsheet,
+  TrendingUp,
+  Tag,
+  Truck,
+  MapPin,
+  Calendar,
+  X,
+  FileDown
 } from 'lucide-react';
 import { DEFAULT_COMPANY_PROFILE } from '../../data/realFleetData';
 import { generateCarrierInvoicePDF } from '../../services/pdfGenerator';
@@ -61,77 +66,110 @@ interface InvoicingHubProps {
   onMigrateFromMyInvoice: (migratedInvoices: ProposedInvoice[]) => void;
   onAddInvoice?: (invoice: ProposedInvoice) => void;
   onDeleteInvoice?: (invoiceId: string) => void;
+  onAddProject?: (newProject: any) => void;
 }
 
-// Simulated Incoming Scans for Folder Processing
-const MOCK_INCOMING_PAPERWORK: ScannedDocument[] = [
+export interface SpotFreightBid {
+  id: string;
+  tenderNumber: string;
+  brokerName: string;
+  brokerEmail: string;
+  originCity: string;
+  originState: string;
+  destCity: string;
+  destState: string;
+  pickupDate: string;
+  deliveryDate: string;
+  equipmentType: '53ft Reefer' | '53ft Dry Van' | 'Flatbed';
+  loadedMiles: number;
+  initialBrokerOffer: number;
+  ourBidAmount: number;
+  ratePerMile: number;
+  status: 'won' | 'submitted' | 'countered' | 'lost';
+  driverAssignment: string;
+  notes: string;
+}
+
+const INITIAL_SPOT_BIDS: SpotFreightBid[] = [
   {
-    id: 'doc-inc-101',
-    fileName: 'BOL_CHR_982301_Signed.pdf',
-    fileSize: '1.4 MB',
-    type: 'BOL',
-    scannedAt: new Date(Date.now() - 3600000 * 2).toISOString(),
-    localPath: '/incoming/BOL_CHR_982301_Signed.pdf',
-    thumbnailColor: 'bg-emerald-50 border-emerald-200',
-    ocrConfidence: 98,
-    status: 'matched',
-    matchedCustomer: 'C.H. Robinson Worldwide',
-    extractedData: {
-      bolNumber: 'BOL-998124',
-      loadNumber: 'CHR-982301',
-      brokerCustomer: 'C.H. Robinson Worldwide',
-      carrierName: 'GREEN EXPRESS LLC',
-      driverName: 'Ray Delgado',
-      pickupLocation: 'Chicago Dist Center, IL 60608',
-      deliveryLocation: 'Dallas Metro Logistics, TX 75261',
-      pickupDate: '2026-09-28',
-      deliveryDate: '2026-09-30',
-      weightLbs: 42800,
-      consigneeSignature: true,
-      notes: 'Clean BOL stamped by receiver with zero OS&D exceptions.'
-    },
-    discrepancies: []
+    id: 'bid-101',
+    tenderNumber: 'TND-CHR-8910',
+    brokerName: 'C.H. Robinson Worldwide',
+    brokerEmail: 'loadbids@chrobinson.com',
+    originCity: 'Fort Worth',
+    originState: 'TX',
+    destCity: 'Chicago',
+    destState: 'IL',
+    pickupDate: '2026-10-08',
+    deliveryDate: '2026-10-10',
+    equipmentType: '53ft Reefer',
+    loadedMiles: 928,
+    initialBrokerOffer: 3400,
+    ourBidAmount: 3870,
+    ratePerMile: 4.17,
+    status: 'won',
+    driverAssignment: 'Jesus Medina (Unit #106)',
+    notes: 'Agreed at $3,870 all-in. High-value frozen cargo.'
   },
   {
-    id: 'doc-inc-102',
-    fileName: 'RateCon_CHR_982301.pdf',
-    fileSize: '820 KB',
-    type: 'RateConfirmation',
-    scannedAt: new Date(Date.now() - 3600000 * 3).toISOString(),
-    localPath: '/incoming/RateCon_CHR_982301.pdf',
-    thumbnailColor: 'bg-blue-50 border-blue-200',
-    ocrConfidence: 99,
-    status: 'matched',
-    matchedCustomer: 'C.H. Robinson Worldwide',
-    extractedData: {
-      loadNumber: 'CHR-982301',
-      brokerCustomer: 'C.H. Robinson Worldwide',
-      rateAmount: 3870.00,
-      pickupLocation: 'Chicago, IL',
-      deliveryLocation: 'Dallas, TX',
-      pickupDate: '2026-09-28',
-      deliveryDate: '2026-09-30',
-      notes: 'Agreed Rate: $3,450 Linehaul + $420 Fuel Surcharge (Equipment: 53ft Refrigerated)'
-    },
-    discrepancies: []
+    id: 'bid-102',
+    tenderNumber: 'TND-TQL-4421',
+    brokerName: 'Total Quality Logistics (TQL)',
+    brokerEmail: 'spotops@tql.com',
+    originCity: 'Dallas',
+    originState: 'TX',
+    destCity: 'Atlanta',
+    destState: 'GA',
+    pickupDate: '2026-10-09',
+    deliveryDate: '2026-10-11',
+    equipmentType: '53ft Dry Van',
+    loadedMiles: 785,
+    initialBrokerOffer: 2400,
+    ourBidAmount: 2750,
+    ratePerMile: 3.50,
+    status: 'countered',
+    driverAssignment: 'Jose Medina (Unit #101)',
+    notes: 'Countered broker at $2,750. Waiting on final shipper approval.'
   },
   {
-    id: 'doc-inc-103',
-    fileName: 'Lumper_CapStone_Dallas_285.pdf',
-    fileSize: '410 KB',
-    type: 'LumperReceipt',
-    scannedAt: new Date(Date.now() - 3600000 * 1).toISOString(),
-    localPath: '/incoming/Lumper_CapStone_Dallas_285.pdf',
-    thumbnailColor: 'bg-amber-50 border-amber-200',
-    ocrConfidence: 96,
-    status: 'matched',
-    matchedCustomer: 'CapStone Logistics (Pass-through to CHR)',
-    extractedData: {
-      loadNumber: 'CHR-982301',
-      lumperAmount: 285.00,
-      notes: 'Unloading 22 pallets frozen poultry. Express code paid.'
-    },
-    discrepancies: []
+    id: 'bid-103',
+    tenderNumber: 'TND-ECHO-7730',
+    brokerName: 'Echo Global Logistics',
+    brokerEmail: 'truckloads@echo.com',
+    originCity: 'Houston',
+    originState: 'TX',
+    destCity: 'Denver',
+    destState: 'CO',
+    pickupDate: '2026-10-10',
+    deliveryDate: '2026-10-13',
+    equipmentType: '53ft Reefer',
+    loadedMiles: 1040,
+    initialBrokerOffer: 3800,
+    ourBidAmount: 4250,
+    ratePerMile: 4.08,
+    status: 'submitted',
+    driverAssignment: 'Luis Medina (Unit #102)',
+    notes: 'Submitted bid with continuous temperature monitoring guaranteed.'
+  },
+  {
+    id: 'bid-104',
+    tenderNumber: 'TND-LAND-1192',
+    brokerName: 'Landstar Ranger',
+    brokerEmail: 'bids@landstar.com',
+    originCity: 'San Antonio',
+    originState: 'TX',
+    destCity: 'Indianapolis',
+    destState: 'IN',
+    pickupDate: '2026-10-11',
+    deliveryDate: '2026-10-14',
+    equipmentType: '53ft Dry Van',
+    loadedMiles: 1070,
+    initialBrokerOffer: 2900,
+    ourBidAmount: 3350,
+    ratePerMile: 3.13,
+    status: 'won',
+    driverAssignment: 'Alfredo Medina (Unit #104)',
+    notes: 'Rate lock confirmed. Direct carrier tender.'
   }
 ];
 
@@ -143,1047 +181,1057 @@ export const InvoicingHub: React.FC<InvoicingHubProps> = ({
   onUpdateInvoiceStatus,
   onMigrateFromMyInvoice,
   onAddInvoice,
-  onDeleteInvoice
+  onDeleteInvoice,
+  onAddProject
 }) => {
-  // Master Multi-Stage Pipeline Active Stage State
-  const [activeStage, setActiveStage] = useState<number>(1);
+  // Navigation tabs: 'invoices' | 'bidding' | 'audit' | 'factoring'
+  const [activeTab, setActiveTab] = useState<'invoices' | 'bidding' | 'audit' | 'factoring'>('invoices');
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  // Stage 1: Incoming Folder Paperwork State
-  const [incomingDocs, setIncomingDocs] = useState<ScannedDocument[]>(MOCK_INCOMING_PAPERWORK);
-  const [isScanningFolder, setIsScanningFolder] = useState(false);
-  const [scanProgressText, setScanProgressText] = useState('');
-
-  // Stage 2: Side-by-Side Review State (Proposed Invoice Editing)
-  const [proposedInvoice, setProposedInvoice] = useState<ProposedInvoice>(invoices[0] || {
-    id: 'inv-prop-101',
-    invoiceNumber: 'INV-2026-9812',
-    projectId: 'prj-1',
-    loadNumber: 'CHR-982301',
-    customerName: 'C.H. Robinson Worldwide',
-    customerEmail: 'ap@chrobinson.com',
-    billingAddress: '14701 Charlson Rd, Eden Prairie, MN 55347',
-    paymentTerms: 'Net 30 Days',
-    issueDate: '2026-09-30',
-    dueDate: '2026-10-30',
-    lineItems: [
-      { id: 'li-1', description: 'Linehaul: Chicago IL to Dallas TX', type: 'linehaul', amount: 3450.00, sourceDoc: 'RateConfirmation' },
-      { id: 'li-2', description: 'Fuel Surcharge (DOE Diesel Index)', type: 'fuel_surcharge', amount: 420.00, sourceDoc: 'RateConfirmation' },
-      { id: 'li-3', description: 'CapStone Lumper Reimbursement', type: 'lumper_reimbursement', amount: 285.00, sourceDoc: 'LumperReceipt' }
-    ],
-    subtotal: 4155.00,
-    taxRate: 0,
-    taxAmount: 0,
-    totalAmount: 4155.00,
-    amountPaid: 0,
-    balanceDue: 4155.00,
-    status: 'needs_review',
-    attachedDocIds: ['doc-inc-101', 'doc-inc-102', 'doc-inc-103'],
-    factoringStatus: 'eligible',
-    correctionsLog: [
-      { field: 'Intake Scan', oldValue: 'Raw Files', newValue: 'Matched (3 Docs)', correctedBy: 'OCR Engine', timestamp: '10:15 AM' }
-    ]
-  });
-
-  // Editable Fields in Pre-Approval Audit
-  const [editCustomerName, setEditCustomerName] = useState(proposedInvoice.customerName);
-  const [editCustomerEmail, setEditCustomerEmail] = useState(proposedInvoice.customerEmail);
-  const [editBillingAddress, setEditBillingAddress] = useState(proposedInvoice.billingAddress);
-  const [editLinehaul, setEditLinehaul] = useState(3450.00);
-  const [editFuel, setEditFuel] = useState(420.00);
-  const [editLumper, setEditLumper] = useState(285.00);
-  const [editDetention, setEditDetention] = useState(0.00);
-  const [correctionsLog, setCorrectionsLog] = useState<ProposedInvoice['correctionsLog']>(proposedInvoice.correctionsLog || []);
-  const [selectedDocTab, setSelectedDocTab] = useState<'BOL' | 'RateConfirmation' | 'LumperReceipt'>('BOL');
-
-  // Stage 3 & 4: Invoices List & Email Dispatch State
+  // Invoices list state
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [selectedInvoice, setSelectedInvoice] = useState<ProposedInvoice | null>(invoices[0] || null);
 
-  // Email Approval Modal / Dispatch Panel State
-  const [emailTo, setEmailTo] = useState('ap@chrobinson.com');
-  const [emailSubject, setEmailSubject] = useState('');
-  const [emailBody, setEmailBody] = useState('');
-  const [isSendingEmail, setIsSendingEmail] = useState(false);
+  // Spot Bidding state
+  const [spotBids, setSpotBids] = useState<SpotFreightBid[]>(INITIAL_SPOT_BIDS);
+  const [bidFilter, setBidFilter] = useState<'all' | 'won' | 'submitted' | 'countered'>('all');
+  const [showNewBidModal, setShowNewBidModal] = useState(false);
 
-  // Stage 5: Payment Remittance Import & Matching Engine State
-  const [remittanceFileName, setRemittanceFileName] = useState('');
-  const [remittancePayer, setRemittancePayer] = useState('');
-  const [remittanceRef, setRemittanceRef] = useState('');
-  const [remittanceAmount, setRemittanceAmount] = useState<number>(0);
-  const [matchingInvoice, setMatchingInvoice] = useState<ProposedInvoice | null>(null);
-  const [isProcessingRemittance, setIsProcessingRemittance] = useState(false);
+  // New Bid Form State
+  const [bidBroker, setBidBroker] = useState('C.H. Robinson Worldwide');
+  const [bidBrokerEmail, setBidBrokerEmail] = useState('ap@chrobinson.com');
+  const [bidOriginCity, setBidOriginCity] = useState('Fort Worth');
+  const [bidOriginState, setBidOriginState] = useState('TX');
+  const [bidDestCity, setBidDestCity] = useState('Chicago');
+  const [bidDestState, setBidDestState] = useState('IL');
+  const [bidEquipment, setBidEquipment] = useState<'53ft Reefer' | '53ft Dry Van' | 'Flatbed'>('53ft Reefer');
+  const [bidMiles, setBidMiles] = useState(930);
+  const [bidOffer, setBidOffer] = useState(3850);
+  const [bidBrokerOriginal, setBidBrokerOriginal] = useState(3400);
+  const [bidDriver, setBidDriver] = useState('Jesus Medina');
+
+  // Manual New Invoice Modal State
+  const [showNewInvoiceModal, setShowNewInvoiceModal] = useState(false);
+  const [newInvNo, setNewInvNo] = useState(`INV-2026-${Math.floor(1000 + Math.random() * 9000)}`);
+  const [newInvCustomer, setNewInvCustomer] = useState('C.H. Robinson Worldwide');
+  const [newInvEmail, setNewInvEmail] = useState('ap@chrobinson.com');
+  const [newInvLoadNo, setNewInvLoadNo] = useState('GE-982301');
+  const [newInvLinehaul, setNewInvLinehaul] = useState(3450);
+  const [newInvFuel, setNewInvFuel] = useState(420);
+  const [newInvLumper, setNewInvLumper] = useState(0);
+  const [newInvDetention, setNewInvDetention] = useState(0);
+  const [newInvTerms, setNewInvTerms] = useState('Net 30 Days');
+
+  // Factoring batch selection state
+  const [selectedFactoringIds, setSelectedFactoringIds] = useState<string[]>([]);
+  const [isSubmittingFactoring, setIsSubmittingFactoring] = useState(false);
+  const [factoringCompany, setFactoringCompany] = useState<'TriumphPay' | 'RTS Financial' | 'Apex Capital'>('TriumphPay');
+
+  // Gmail Dispatch state
+  const [isSendingEmail, setIsSendingEmail] = useState(false);
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
-    setTimeout(() => setToastMessage(null), 4000);
+    setTimeout(() => setToastMessage(null), 3800);
   };
 
-  // Stage 1: Trigger Hotfolder Scanner for Paperwork
-  const handleScanIncomingFolder = () => {
-    setIsScanningFolder(true);
-    setScanProgressText('Reading local /incoming folder...');
+  // Calculations for Spot Bid Rate per mile
+  const calculatedBidRPM = bidMiles > 0 ? Math.round((bidOffer / bidMiles) * 100) / 100 : 0;
+  const estimatedDriverCut = Math.round(bidOffer * 0.65 * 100) / 100;
+  const estimatedNetMargin = Math.round((bidOffer - estimatedDriverCut - (bidMiles * 0.45)) * 100) / 100;
 
-    setTimeout(() => setScanProgressText('Extracting text from BOL_CHR_982301_Signed.pdf...'), 600);
-    setTimeout(() => setScanProgressText('Matching Rate Confirmation & Lumper Receipt...'), 1200);
-
-    setTimeout(() => {
-      setIsScanningFolder(false);
-      showToast('✅ Folder Scanner complete: Matched 3 documents for Load #CHR-982301 (Customer: C.H. Robinson Worldwide).');
-    }, 1800);
-  };
-
-  // Stage 1 -> Stage 2: Generate Proposed Invoice from Matched Paperwork
-  const handleProposeInvoiceFromScans = () => {
-    const subtotal = editLinehaul + editFuel + editLumper + editDetention;
-    const proposed: ProposedInvoice = {
-      ...proposedInvoice,
-      customerName: editCustomerName,
-      customerEmail: editCustomerEmail,
-      billingAddress: editBillingAddress,
-      subtotal,
-      totalAmount: subtotal,
-      balanceDue: subtotal,
-      lineItems: [
-        { id: 'li-1', description: 'Linehaul: Chicago IL to Dallas TX', type: 'linehaul', amount: editLinehaul, sourceDoc: 'RateConfirmation' },
-        { id: 'li-2', description: 'Fuel Surcharge (DOE Diesel Index)', type: 'fuel_surcharge', amount: editFuel, sourceDoc: 'RateConfirmation' },
-        { id: 'li-3', description: 'CapStone Lumper Reimbursement', type: 'lumper_reimbursement', amount: editLumper, sourceDoc: 'LumperReceipt' },
-        ...(editDetention > 0 ? [{ id: 'li-4', description: 'Detention Hours Charge', type: 'detention' as const, amount: editDetention, sourceDoc: 'Manual' as const }] : [])
-      ],
-      status: 'needs_review'
-    };
-
-    setProposedInvoice(proposed);
-    setActiveStage(2);
-    showToast('Proposed Invoice generated! Proceed with side-by-side verification.');
-  };
-
-  // Stage 2: Save Approved Invoice Data
-  const handleUpdateProposedInvoice = async () => {
-    const subtotal = editLinehaul + editFuel + editLumper + editDetention;
-
-    const updated: ProposedInvoice = {
-      ...proposedInvoice,
-      customerName: editCustomerName,
-      customerEmail: editCustomerEmail,
-      billingAddress: editBillingAddress,
-      subtotal,
-      totalAmount: subtotal,
-      balanceDue: subtotal,
-      status: 'ready_to_send',
-      lineItems: [
-        { id: 'li-1', description: 'Linehaul: Chicago IL to Dallas TX', type: 'linehaul', amount: editLinehaul, sourceDoc: 'RateConfirmation' },
-        { id: 'li-2', description: 'Fuel Surcharge (DOE Diesel Index)', type: 'fuel_surcharge', amount: editFuel, sourceDoc: 'RateConfirmation' },
-        { id: 'li-3', description: 'CapStone Lumper Reimbursement', type: 'lumper_reimbursement', amount: editLumper, sourceDoc: 'LumperReceipt' },
-        ...(editDetention > 0 ? [{ id: 'li-4', description: 'Detention Hours Charge', type: 'detention' as const, amount: editDetention, sourceDoc: 'Manual' as const }] : [])
-      ]
-    };
-
-    const logEntry = {
-      field: 'Total Verification',
-      oldValue: proposedInvoice.totalAmount || 0,
-      newValue: subtotal,
-      correctedBy: 'Dispatcher Review',
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      reason: `Verified by Dispatcher: Total $${subtotal.toFixed(2)} (Linehaul: $${editLinehaul}, Fuel: $${editFuel}, Lumper: $${editLumper})`
-    };
-
-    const newLog = [...correctionsLog, logEntry];
-    updated.correctionsLog = newLog;
-    setCorrectionsLog(newLog);
-    setProposedInvoice(updated);
-
-    if (onAddInvoice) {
-      onAddInvoice(updated);
-    }
-
-    await saveInvoiceToPythonDB(updated);
-    showToast(`Invoice #${updated.invoiceNumber} approved and saved to SQLite! Ready for Gmail dispatch.`);
-    setActiveStage(3);
-  };
-
-  // Stage 3 -> Stage 4: Prepare Billing Email for Invoice
-  const handlePrepareEmailForInvoice = (inv: ProposedInvoice) => {
-    setSelectedInvoice(inv);
-    setEmailTo(inv.customerEmail || 'ap@chrobinson.com');
-    setEmailSubject(`OFFICIAL BILLING PACKET: Invoice #${inv.invoiceNumber} (Load #${inv.loadNumber}) - ${companyProfile.companyName}`);
-    setEmailBody(`Dear ${inv.customerName} Accounts Payable Team,\n\nPlease find attached our official billing packet for Load #${inv.loadNumber}.\n\nSUMMARY OF CHARGES:\n• Invoice #: ${inv.invoiceNumber}\n• Load #: ${inv.loadNumber}\n• Pickup Date: ${inv.issueDate}\n• Total Amount Due: $${inv.totalAmount.toFixed(2)} USD\n• Payment Terms: ${inv.paymentTerms}\n\nATTACHED DOCUMENTS:\n1. Carrier Invoice PDF (${inv.invoiceNumber}.pdf)\n2. Signed Bill of Lading (BOL)\n3. Rate Confirmation Agreement\n4. CapStone Lumper Receipt\n\nREMITTANCE NOTICE:\nPlease issue ACH / Check payment directly to:\n${companyProfile.companyName}\nMC #${companyProfile.mcNumber} · DOT #${companyProfile.dotNumber}\nEmail: ${companyProfile.email || 'dispatch@greenexpressllc.com'}\nPhone: ${companyProfile.phone || '(312) 555-0199'}\n\nThank you for your business,\nFreight Operations & Accounts Receivable Team`);
-    setActiveStage(4);
-  };
-
-  // Stage 4: Send Billing Email via Google Workspace Gmail API
-  const handleSendBillingEmail = async () => {
-    if (!selectedInvoice) return;
-    setIsSendingEmail(true);
-
-    try {
-      const res = await sendEmailViaRealGmail({
-        to: emailTo,
-        subject: emailSubject,
-        body: emailBody
-      });
-
-      if (res.success) {
-        onUpdateInvoiceStatus(selectedInvoice.id, 'sent');
-        showToast(`✅ Billing Packet sent to ${emailTo} via Gmail API! Message ID: ${res.messageId}`);
-        setActiveStage(3);
-      } else {
-        const workspaceRes = await sendBillingEmailViaGmail(
-          emailTo,
-          emailSubject,
-          emailBody
-        );
-
-        if (workspaceRes.success) {
-          onUpdateInvoiceStatus(selectedInvoice.id, 'sent');
-          showToast(`✅ Email sent via Google Workspace Gmail API!`);
-          setActiveStage(3);
-        } else {
-          showToast(`Gmail API Error: ${workspaceRes.error || res.error}`);
-        }
-      }
-    } catch (err: any) {
-      showToast(`Email error: ${err.message}`);
-    } finally {
-      setIsSendingEmail(false);
-    }
-  };
-
-  // Stage 5: Import Payment Remittance Document & Propose Matching Invoice
-  const handleImportRemittanceDoc = (fileName: string) => {
-    setIsProcessingRemittance(true);
-    setRemittanceFileName(fileName);
-
-    setTimeout(() => {
-      const isCHR = fileName.toLowerCase().includes('chr') || fileName.toLowerCase().includes('robinson');
-      const targetInvoice = invoices.find(inv => inv.customerName.toLowerCase().includes('robinson') || inv.status === 'sent') || invoices[0];
-
-      setRemittancePayer(isCHR ? 'C.H. Robinson Worldwide' : 'Echo Global Logistics');
-      setRemittanceRef(isCHR ? 'ACH-REM-998201' : 'CHK-44102');
-      const amt = targetInvoice ? targetInvoice.balanceDue : 4155.00;
-      setRemittanceAmount(amt);
-      setMatchingInvoice(targetInvoice || null);
-
-      setIsProcessingRemittance(false);
-      showToast(`Parsed Remittance Document '${fileName}'. Proposed match: Invoice #${targetInvoice?.invoiceNumber || 'INV-2026-881'}`);
-    }, 1000);
-  };
-
-  // Stage 5: Confirm Payment Receipt & Mark Invoice Reconciled / Paid
-  const handleConfirmPaymentReceipt = async () => {
-    if (!matchingInvoice || remittanceAmount <= 0) return;
-
-    const remaining = matchingInvoice.balanceDue - remittanceAmount;
-    const newStatus: ProposedInvoice['status'] = remaining <= 0 ? 'reconciled' : 'partially_paid';
-
-    onUpdateInvoiceStatus(matchingInvoice.id, newStatus);
-    await recordPaymentInPythonDB(
-      matchingInvoice.id,
-      remittanceAmount,
-      remittanceRef || 'ACH-REM-998201',
-      'ACH',
-      new Date().toISOString().split('T')[0]
-    );
-
-    showToast(`✅ Payment of $${remittanceAmount.toLocaleString()} confirmed and applied to Invoice #${matchingInvoice.invoiceNumber}! Status updated to '${newStatus}'. Recorded in SQLite.`);
-    setMatchingInvoice(null);
-    setRemittanceFileName('');
-    setRemittanceAmount(0);
-    setActiveStage(3);
-  };
-
-  // PDF Generator Trigger with Real Company Billing Data
-  const handleDownloadInvoicePDF = (inv: ProposedInvoice) => {
-    const proj = projects.find(p => p.id === inv.projectId);
-    generateCarrierInvoicePDF(inv, companyProfile, proj);
-    showToast(`Downloaded Official Carrier Invoice PDF #${inv.invoiceNumber} (Real Billing Data: MC #${companyProfile.mcNumber})`);
-  };
-
-  // Filtered Invoices List
+  // Filtered invoices
   const filteredInvoices = invoices.filter(inv => {
-    const matchesSearch = inv.invoiceNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          inv.customerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          inv.loadNumber.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesStatus = statusFilter === 'all' || inv.status === statusFilter;
-    return matchesSearch && matchesStatus;
+    const q = searchQuery.toLowerCase();
+    const matchQuery = 
+      inv.invoiceNumber.toLowerCase().includes(q) ||
+      inv.customerName.toLowerCase().includes(q) ||
+      inv.loadNumber.toLowerCase().includes(q);
+    const matchStatus = statusFilter === 'all' || inv.status === statusFilter;
+    return matchQuery && matchStatus;
   });
 
+  // Filtered bids
+  const filteredBids = spotBids.filter(b => {
+    const matchFilter = bidFilter === 'all' || b.status === bidFilter;
+    const matchQuery = !searchQuery || 
+      b.tenderNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      b.brokerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      b.originCity.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      b.destCity.toLowerCase().includes(searchQuery.toLowerCase());
+    return matchFilter && matchQuery;
+  });
+
+  // Financial metrics
+  const totalBilled = invoices.reduce((acc, i) => acc + i.totalAmount, 0);
+  const totalBalanceDue = invoices.reduce((acc, i) => acc + (i.balanceDue || 0), 0);
+  const totalPaid = invoices.filter(i => i.status === 'paid').reduce((acc, i) => acc + i.totalAmount, 0);
+  const wonBidsCount = spotBids.filter(b => b.status === 'won').length;
+
+  // Handle Create Spot Bid
+  const handleSaveSpotBid = (e: React.FormEvent) => {
+    e.preventDefault();
+    const newBid: SpotFreightBid = {
+      id: `bid-${Date.now()}`,
+      tenderNumber: `TND-${bidBroker.slice(0, 3).toUpperCase()}-${Math.floor(1000 + Math.random() * 9000)}`,
+      brokerName: bidBroker,
+      brokerEmail: bidBrokerEmail,
+      originCity: bidOriginCity,
+      originState: bidOriginState,
+      destCity: bidDestCity,
+      destState: bidDestState,
+      pickupDate: new Date(Date.now() + 86400000).toISOString().split('T')[0],
+      deliveryDate: new Date(Date.now() + 86400000 * 3).toISOString().split('T')[0],
+      equipmentType: bidEquipment,
+      loadedMiles: bidMiles,
+      initialBrokerOffer: bidBrokerOriginal,
+      ourBidAmount: bidOffer,
+      ratePerMile: calculatedBidRPM,
+      status: 'submitted',
+      driverAssignment: `${bidDriver} (Assigned)`,
+      notes: `Direct spot quote submitted at $${calculatedBidRPM}/mi.`
+    };
+
+    setSpotBids(prev => [newBid, ...prev]);
+    showToast(`✅ Spot Bid #${newBid.tenderNumber} of $${newBid.ourBidAmount.toLocaleString()} submitted to ${bidBroker}!`);
+    setShowNewBidModal(false);
+  };
+
+  // Convert Won Bid to Active Load & Proposed Invoice
+  const handleConvertBidToLoad = (bid: SpotFreightBid) => {
+    // 1. Create Invoice
+    const totalAmount = bid.ourBidAmount;
+    const linehaul = Math.round(totalAmount * 0.88);
+    const fuel = totalAmount - linehaul;
+    const invNo = `INV-${new Date().getFullYear()}-${bid.tenderNumber.slice(-4)}`;
+
+    const newInv: ProposedInvoice = {
+      id: `inv-${Date.now()}`,
+      invoiceNumber: invNo,
+      projectId: `prj-${Date.now()}`,
+      loadNumber: `GE-${bid.tenderNumber.slice(-4)}`,
+      customerName: bid.brokerName,
+      customerEmail: bid.brokerEmail,
+      billingAddress: 'Corporate Accounts Payable, PO Box 9801',
+      paymentTerms: 'Net 30 Days',
+      issueDate: new Date().toISOString().split('T')[0],
+      dueDate: new Date(Date.now() + 86400000 * 30).toISOString().split('T')[0],
+      lineItems: [
+        { id: 'li-1', description: `Linehaul: ${bid.originCity}, ${bid.originState} to ${bid.destCity}, ${bid.destState}`, type: 'linehaul', amount: linehaul, sourceDoc: 'RateConfirmation' },
+        { id: 'li-2', description: 'Fuel Surcharge (DOE Diesel Index)', type: 'fuel_surcharge', amount: fuel, sourceDoc: 'RateConfirmation' }
+      ],
+      subtotal: totalAmount,
+      taxRate: 0,
+      taxAmount: 0,
+      totalAmount: totalAmount,
+      amountPaid: 0,
+      balanceDue: totalAmount,
+      status: 'needs_review',
+      attachedDocIds: [],
+      factoringStatus: 'eligible'
+    };
+
+    if (onAddInvoice) {
+      onAddInvoice(newInv);
+    }
+
+    // 2. Add to active projects
+    if (onAddProject) {
+      onAddProject({
+        code: `PRJ-${bid.tenderNumber.slice(-3)}`,
+        loadNumber: newInv.loadNumber,
+        customerName: bid.brokerName,
+        customerCode: bid.brokerName.slice(0, 4).toUpperCase(),
+        originCity: bid.originCity,
+        originState: bid.originState,
+        originAddress: `${bid.originCity}, ${bid.originState}`,
+        destCity: bid.destCity,
+        destState: bid.destState,
+        destAddress: `${bid.destCity}, ${bid.destState}`,
+        pickupDate: bid.pickupDate,
+        deliveryDate: bid.deliveryDate,
+        driverName: bid.driverAssignment.split(' ')[0] + ' ' + bid.driverAssignment.split(' ')[1],
+        driverPhone: '(817) 592-1060',
+        truckId: 'Unit #106',
+        trailerId: 'TLR-54211',
+        equipmentType: bid.equipmentType,
+        linehaulPay: linehaul,
+        fuelSurcharge: fuel,
+        estimatedRevenue: totalAmount,
+        status: 'in_transit',
+        commodities: 'High-Value Commercial Freight',
+        weightLbs: 42000,
+        progress: 25
+      });
+    }
+
+    // Update bid status to won
+    setSpotBids(prev => prev.map(b => b.id === bid.id ? { ...b, status: 'won' } : b));
+    showToast(`🎉 Bid Won! Load #${newInv.loadNumber} dispatched and Pre-Invoice #${invNo} created!`);
+  };
+
+  // Handle Manual Invoice Creation
+  const handleCreateManualInvoice = (e: React.FormEvent) => {
+    e.preventDefault();
+    const subtotal = newInvLinehaul + newInvFuel + newInvLumper + newInvDetention;
+    const lineItems: InvoiceLineItem[] = [
+      { id: 'li-1', description: `Freight Linehaul Charges`, type: 'linehaul', amount: newInvLinehaul, sourceDoc: 'RateConfirmation' },
+      { id: 'li-2', description: `Fuel Surcharge (DOE Index)`, type: 'fuel_surcharge', amount: newInvFuel, sourceDoc: 'RateConfirmation' }
+    ];
+
+    if (newInvLumper > 0) {
+      lineItems.push({ id: 'li-3', description: `Lumper Reimbursement (Pass-through)`, type: 'lumper_reimbursement', amount: newInvLumper, sourceDoc: 'LumperReceipt' });
+    }
+    if (newInvDetention > 0) {
+      lineItems.push({ id: 'li-4', description: `Detention Dwell Time (Dock delay)`, type: 'detention', amount: newInvDetention, sourceDoc: 'RateConfirmation' });
+    }
+
+    const created: ProposedInvoice = {
+      id: `inv-${Date.now()}`,
+      invoiceNumber: newInvNo,
+      projectId: `prj-${Date.now()}`,
+      loadNumber: newInvLoadNo,
+      customerName: newInvCustomer,
+      customerEmail: newInvEmail,
+      billingAddress: 'Corporate Accounts Payable, PO Box 9801',
+      paymentTerms: newInvTerms,
+      issueDate: new Date().toISOString().split('T')[0],
+      dueDate: new Date(Date.now() + 86400000 * 30).toISOString().split('T')[0],
+      lineItems,
+      subtotal,
+      taxRate: 0,
+      taxAmount: 0,
+      totalAmount: subtotal,
+      amountPaid: 0,
+      balanceDue: subtotal,
+      status: 'approved',
+      attachedDocIds: [],
+      factoringStatus: 'eligible'
+    };
+
+    if (onAddInvoice) {
+      onAddInvoice(created);
+    }
+    showToast(`✅ Invoice #${created.invoiceNumber} created and ready for factoring/dispatch!`);
+    setShowNewInvoiceModal(false);
+  };
+
+  // Handle Factoring Submission Batch
+  const handleSubmitFactoringBatch = () => {
+    if (selectedFactoringIds.length === 0) {
+      showToast('Please select at least one eligible invoice for factoring.');
+      return;
+    }
+
+    setIsSubmittingFactoring(true);
+    setTimeout(() => {
+      setIsSubmittingFactoring(false);
+      selectedFactoringIds.forEach(id => {
+        onUpdateInvoiceStatus(id, 'invoiced');
+      });
+      showToast(`🏦 Batch Transmitted: ${selectedFactoringIds.length} invoices submitted to ${factoringCompany} with Notice of Assignment!`);
+      setSelectedFactoringIds([]);
+    }, 1200);
+  };
+
+  // Handle Download Invoice PDF
+  const handleDownloadInvoicePDF = (inv: ProposedInvoice, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    const proj = projects.find(p => p.id === inv.projectId);
+    generateCarrierInvoicePDF(inv, companyProfile, proj);
+    showToast(`📄 Downloaded Carrier Invoice PDF for #${inv.invoiceNumber}`);
+  };
+
+  // Handle Export to CSV
+  const handleExportCSV = () => {
+    const headers = ['InvoiceNumber', 'LoadNumber', 'Customer', 'TotalAmount', 'BalanceDue', 'Status', 'IssueDate', 'DueDate'];
+    const rows = invoices.map(i => [
+      i.invoiceNumber,
+      i.loadNumber,
+      `"${i.customerName}"`,
+      i.totalAmount.toFixed(2),
+      i.balanceDue.toFixed(2),
+      i.status,
+      i.issueDate,
+      i.dueDate
+    ]);
+    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement('a');
+    link.setAttribute('href', encodedUri);
+    link.setAttribute('download', `green_express_invoices_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    showToast('📊 Invoices exported to CSV format.');
+  };
+
   return (
-    <div className="space-y-6 select-none font-sans">
-      {/* Toast Notification Header Banner */}
+    <div className="flex-1 flex flex-col h-full bg-[#F5F5F7] overflow-hidden select-none">
+      {/* Toast */}
       {toastMessage && (
-        <div className="fixed top-20 right-6 z-50 bg-gray-900 border border-gray-700 text-white px-4 py-2.5 rounded-lg text-xs shadow-md">
+        <div className="fixed top-16 right-6 z-50 px-4 py-2.5 bg-emerald-600 text-white text-xs font-semibold rounded-xl shadow-2xl border border-emerald-400 flex items-center gap-2 animate-in fade-in slide-in-from-top-3">
+          <CheckCircle2 className="w-4 h-4 shrink-0" />
           <span>{toastMessage}</span>
         </div>
       )}
 
-      {/* Main Multi-Stage State Machine Pipeline Header */}
-      <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-xs">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
-          <div>
-            <h1 className="text-xl font-bold text-gray-900 flex items-center gap-2.5">
-              <ReceiptText className="w-6 h-6 text-[#007AFF]" />
-              Automated Freight Invoicing & Settlement Engine
-            </h1>
-            <p className="text-gray-500 text-xs mt-1">
-              End-to-end multi-stage billing pipeline: Local paper OCR scanning, side-by-side audit, real carrier PDF generation, Gmail API email approval, and payment reconciliation.
-            </p>
+      {/* TOP HEADER & METRICS BAR */}
+      <div className="bg-white border-b border-[#E5E5EA] px-6 py-3.5 shrink-0 shadow-2xs">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-emerald-600 text-white flex items-center justify-center font-bold text-sm shadow-xs">
+              <ReceiptText className="w-4 h-4" />
+            </div>
+            <div>
+              <h1 className="text-sm font-extrabold text-gray-950 tracking-tight flex items-center gap-2">
+                <span>Billing, Invoices & Freight Bidding</span>
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 font-bold border border-blue-200">
+                  AR & Factoring Active
+                </span>
+              </h1>
+              <p className="text-[11px] text-gray-500">
+                Spot rate bidding, factoring submissions, and accounts receivable ledger for GREEN EXPRESS LLC.
+              </p>
+            </div>
           </div>
 
-          <div className="flex items-center gap-2 shrink-0 bg-gray-50 px-3 py-1.5 rounded-lg border border-gray-200 text-xs text-gray-700">
-            <Building2 className="w-4 h-4 text-gray-500" />
-            <span className="font-semibold">{companyProfile.companyName}</span>
-            <span className="text-gray-300">|</span>
-            <span className="text-gray-600 font-mono">MC: {companyProfile.mcNumber}</span>
+          {/* Metrics */}
+          <div className="flex items-center gap-3 text-xs">
+            <div className="px-3 py-1.5 rounded-xl bg-[#F5F5F7] border border-gray-200 flex items-center gap-2">
+              <span className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Total AR</span>
+              <span className="font-extrabold text-gray-950 font-mono">${totalBilled.toLocaleString()}</span>
+            </div>
+
+            <div className="px-3 py-1.5 rounded-xl bg-amber-50 border border-amber-200 flex items-center gap-2">
+              <span className="text-[10px] text-amber-700 font-bold uppercase tracking-wider">Balance Due</span>
+              <span className="font-extrabold text-amber-900 font-mono">${totalBalanceDue.toLocaleString()}</span>
+            </div>
+
+            <div className="px-3 py-1.5 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center gap-2">
+              <span className="text-[10px] text-emerald-700 font-bold uppercase tracking-wider">Collected</span>
+              <span className="font-extrabold text-emerald-800 font-mono">${totalPaid.toLocaleString()}</span>
+            </div>
+
+            <div className="px-3 py-1.5 rounded-xl bg-purple-50 border border-purple-200 flex items-center gap-2">
+              <span className="text-[10px] text-purple-700 font-bold uppercase tracking-wider">Bids Won</span>
+              <span className="font-extrabold text-purple-900 font-mono">{wonBidsCount} Loads</span>
+            </div>
+
+            <div className="flex items-center gap-2 pl-2 border-l border-gray-200">
+              <button
+                onClick={() => setShowNewBidModal(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-xs font-bold shadow-xs transition-colors cursor-pointer"
+              >
+                <TrendingUp className="w-3.5 h-3.5" />
+                <span>Place Spot Bid</span>
+              </button>
+
+              <button
+                onClick={() => setShowNewInvoiceModal(true)}
+                className="flex items-center gap-1.5 px-3.5 py-1.5 bg-[#007AFF] hover:bg-[#0066CC] text-white rounded-lg text-xs font-bold shadow-xs transition-colors cursor-pointer"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>New Invoice</span>
+              </button>
+            </div>
           </div>
         </div>
 
-        {/* 5-Stage Pipeline Progress Bar */}
-        <div className="grid grid-cols-1 sm:grid-cols-5 gap-2">
-          {[
-            { stage: 1, label: '1. Incoming Paperwork', icon: FolderInput, desc: 'Scan BOL, RateCon & Lumpers' },
-            { stage: 2, label: '2. Pre-Approval Audit', icon: Eye, desc: 'Side-by-Side Paperwork Verification' },
-            { stage: 3, label: '3. Final Approval & PDF', icon: FileCheck, desc: 'Accounting & Carrier PDF Export' },
-            { stage: 4, label: '4. Gmail Email Dispatch', icon: Send, desc: 'Review & Dispatch via Gmail API' },
-            { stage: 5, label: '5. Payment Remittance', icon: Landmark, desc: 'Import Stub & Reconcile' }
-          ].map((item) => {
-            const Icon = item.icon;
-            const isActive = activeStage === item.stage;
-            return (
-              <button
-                key={item.stage}
-                onClick={() => setActiveStage(item.stage as any)}
-                className={`flex flex-col text-left p-3 rounded-xl border transition-all cursor-pointer ${
-                  isActive 
-                    ? 'bg-blue-50 border-[#007AFF] text-[#007AFF] font-semibold' 
-                    : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-                }`}
-              >
-                <div className="flex items-center justify-between text-xs font-semibold mb-1">
-                  <span className="flex items-center gap-1.5">
-                    <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-[#007AFF]' : 'text-gray-400'}`} />
-                    {item.label}
-                  </span>
-                </div>
-                <span className="text-[10px] text-gray-500 truncate">{item.desc}</span>
-              </button>
-            );
-          })}
+        {/* TABS ROW */}
+        <div className="mt-3 pt-3 border-t border-gray-150 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={() => setActiveTab('invoices')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer transition-colors flex items-center gap-1.5 ${
+                activeTab === 'invoices'
+                  ? 'bg-gray-900 text-white shadow-2xs'
+                  : 'bg-[#F5F5F7] text-gray-600 hover:text-gray-950 border border-gray-200'
+              }`}
+            >
+              <ReceiptText className="w-3.5 h-3.5" />
+              <span>Invoices Ledger ({invoices.length})</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('bidding')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer transition-colors flex items-center gap-1.5 ${
+                activeTab === 'bidding'
+                  ? 'bg-purple-700 text-white shadow-2xs'
+                  : 'bg-[#F5F5F7] text-gray-600 hover:text-gray-950 border border-gray-200'
+              }`}
+            >
+              <TrendingUp className="w-3.5 h-3.5" />
+              <span>Spot Freight Bidding Matrix ({spotBids.length})</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('factoring')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer transition-colors flex items-center gap-1.5 ${
+                activeTab === 'factoring'
+                  ? 'bg-blue-600 text-white shadow-2xs'
+                  : 'bg-[#F5F5F7] text-gray-600 hover:text-gray-950 border border-gray-200'
+              }`}
+            >
+              <Landmark className="w-3.5 h-3.5" />
+              <span>Factoring & QuickPay (TriumphPay)</span>
+            </button>
+          </div>
+
+          {/* Search & Export */}
+          <div className="flex items-center gap-2">
+            <div className="relative">
+              <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Search invoice #, broker, tender..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-8 pr-3 py-1.5 bg-[#F5F5F7] border border-gray-300 rounded-lg text-xs text-gray-900 placeholder-gray-400 focus:outline-none focus:border-[#007AFF] focus:bg-white w-52 transition-all font-medium"
+              />
+            </div>
+
+            <button
+              onClick={handleExportCSV}
+              className="px-2.5 py-1.5 bg-white hover:bg-gray-100 text-gray-700 border border-gray-300 rounded-lg text-xs font-bold flex items-center gap-1 cursor-pointer"
+              title="Export Invoices to CSV"
+            >
+              <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" />
+              <span>CSV Export</span>
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* STAGE 1: INCOMING FOLDER PAPERWORK SCANNING & MATCHING */}
-      {activeStage === 1 && (
-        <div className="space-y-6">
-          <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-xs">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
-              <div>
-                <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-                  <FolderInput className="w-5 h-5 text-[#007AFF]" />
-                  Incoming Folder Paperwork Scanner (/incoming)
-                </h2>
-                <p className="text-gray-500 text-xs mt-0.5">
-                  The program reads the BOL, matches it with the rate confirmation and lumper receipts, and identifies the customer and load.
-                </p>
+      {/* CONTENT WORKSPACE */}
+      <div className="flex-1 overflow-y-auto p-5 space-y-4">
+        {/* TAB 1: INVOICES LEDGER */}
+        {activeTab === 'invoices' && (
+          <div className="space-y-4">
+            {/* Filter Pills */}
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-1.5 overflow-x-auto text-xs">
+                {['all', 'needs_review', 'approved', 'invoiced', 'paid'].map(st => (
+                  <button
+                    key={st}
+                    onClick={() => setStatusFilter(st)}
+                    className={`px-3 py-1 rounded-md text-[11px] font-bold cursor-pointer transition-colors ${
+                      statusFilter === st
+                        ? 'bg-gray-900 text-white shadow-2xs'
+                        : 'bg-white text-gray-600 hover:text-gray-950 border border-gray-200'
+                    }`}
+                  >
+                    {st === 'all' ? 'All Invoices' : st === 'needs_review' ? 'Needs Review' : st === 'approved' ? 'Approved' : st === 'invoiced' ? 'Factored / Sent' : 'Paid'}
+                  </button>
+                ))}
               </div>
 
-              <div className="flex items-center gap-3">
-                <button
-                  onClick={handleScanIncomingFolder}
-                  disabled={isScanningFolder}
-                  className="px-4 py-2 bg-[#007AFF] hover:bg-blue-600 text-white rounded-xl font-medium text-xs flex items-center gap-2 transition-all disabled:opacity-50 cursor-pointer"
-                >
-                  <RefreshCw className={`w-4 h-4 ${isScanningFolder ? 'animate-spin' : ''}`} />
-                  {isScanningFolder ? 'Scanning Local Folder...' : 'Scan /incoming Folder Now'}
-                </button>
-
-                <button
-                  onClick={handleProposeInvoiceFromScans}
-                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-medium text-xs flex items-center gap-2 transition-all cursor-pointer"
-                >
-                  <Zap className="w-4 h-4" />
-                  Propose Invoice from Matched Scans
-                </button>
-              </div>
+              <span className="text-xs text-gray-500 font-mono">
+                Showing {filteredInvoices.length} of {invoices.length} billing packets
+              </span>
             </div>
 
-            {isScanningFolder && (
-              <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-6 flex items-center gap-3 text-xs text-blue-800">
-                <RefreshCw className="w-4 h-4 text-[#007AFF] animate-spin shrink-0" />
-                <span>{scanProgressText}</span>
-              </div>
-            )}
-
-            {/* Scanned Paperwork Cards Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {incomingDocs.map((doc) => (
-                <div key={doc.id} className={`p-4 rounded-xl border ${doc.thumbnailColor} space-y-3 relative overflow-hidden bg-white`}>
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-gray-100 text-gray-700 border border-gray-200">
-                      {doc.type}
-                    </span>
-                    <span className="text-xs text-emerald-600 font-semibold flex items-center gap-1">
-                      <CheckCircle2 className="w-3.5 h-3.5" />
-                      {doc.ocrConfidence}% OCR
-                    </span>
-                  </div>
-
-                  <div>
-                    <h3 className="text-sm font-semibold text-gray-900 truncate">{doc.fileName}</h3>
-                    <p className="text-xs text-gray-500">{doc.fileSize} • Local Path: {doc.localPath}</p>
-                  </div>
-
-                  <div className="bg-gray-50 rounded-lg p-3 border border-gray-200 text-xs space-y-1.5">
-                    <div className="flex justify-between text-gray-700">
-                      <span className="text-gray-500">Customer:</span>
-                      <span className="font-medium text-gray-900">{doc.extractedData.brokerCustomer || doc.matchedCustomer}</span>
-                    </div>
-                    <div className="flex justify-between text-gray-700">
-                      <span className="text-gray-500">Matched Load #:</span>
-                      <span className="font-mono text-emerald-600 font-bold">{doc.extractedData.loadNumber}</span>
-                    </div>
-                    {doc.type === 'RateConfirmation' && (
-                      <div className="flex justify-between text-gray-700">
-                        <span className="text-gray-500">Agreed Rate:</span>
-                        <span className="font-semibold text-gray-900">${doc.extractedData.rateAmount?.toFixed(2)} USD</span>
-                      </div>
-                    )}
-                    {doc.type === 'LumperReceipt' && (
-                      <div className="flex justify-between text-gray-700">
-                        <span className="text-gray-500">Lumper Fee:</span>
-                        <span className="font-semibold text-amber-600">${doc.extractedData.lumperAmount?.toFixed(2)} USD</span>
-                      </div>
-                    )}
-                    {doc.type === 'BOL' && (
-                      <div className="flex justify-between text-gray-700">
-                        <span className="text-gray-500">Signed BOL Stamp:</span>
-                        <span className="text-emerald-600 font-medium">Receiver Stamp Verified</span>
-                      </div>
-                    )}
-                  </div>
-
-                  <p className="text-[11px] text-gray-500 italic">"{doc.extractedData.notes}"</p>
-                </div>
-              ))}
-            </div>
-
-            {/* Matching Summary Banner */}
-            <div className="mt-6 bg-gray-50 border border-gray-200 rounded-xl p-4 flex flex-col md:flex-row items-center justify-between gap-4">
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-lg bg-emerald-100 text-emerald-700 border border-emerald-300 flex items-center justify-center shrink-0">
-                  <CheckSquare className="w-5 h-5" />
-                </div>
-                <div>
-                  <h4 className="text-sm font-semibold text-gray-900">Load #CHR-982301 Documents Matched (100% Complete)</h4>
-                  <p className="text-xs text-gray-500">All required documents (Signed BOL, Rate Con, Lumper receipt) are verified for customer C.H. Robinson Worldwide.</p>
-                </div>
-              </div>
-
-              <button
-                onClick={handleProposeInvoiceFromScans}
-                className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-medium text-xs flex items-center gap-2 shrink-0 cursor-pointer"
-              >
-                <span>Proceed to Review Proposed Invoice</span>
-                <ChevronRight className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* STAGE 2: PRE-APPROVAL SIDE-BY-SIDE PROPOSED INVOICE AUDIT */}
-      {activeStage === 2 && (
-        <div className="space-y-6">
-          <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-xs">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
-              <div>
-                <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-                  <Eye className="w-5 h-5 text-amber-500" />
-                  Review Proposed Invoice (Side-by-Side Audit)
-                </h2>
-                <p className="text-gray-500 text-xs mt-0.5">
-                  Check extracted details beside original paperwork and correct anything necessary before creating the official invoice.
-                </p>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setActiveStage(1)}
-                  className="px-3.5 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-300 rounded-xl text-xs font-medium cursor-pointer"
-                >
-                  Back to Incoming Scans
-                </button>
-                <button
-                  onClick={handleUpdateProposedInvoice}
-                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-medium text-xs flex items-center gap-2 cursor-pointer"
-                >
-                  <CheckCircle2 className="w-4 h-4" />
-                  Approve Invoice & Move to Final Stage
-                </button>
-              </div>
-            </div>
-
-            {/* Split Screen Layout */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Left Panel: Extracted Invoice Details Editor */}
-              <div className="bg-gray-50 border border-gray-200 rounded-xl p-5 space-y-4">
-                <div className="flex items-center justify-between pb-3 border-b border-gray-200">
-                  <h3 className="text-sm font-bold text-gray-900 flex items-center gap-2">
-                    <Edit3 className="w-4 h-4 text-[#007AFF]" />
-                    Proposed Invoice Fields (Editable)
-                  </h3>
-                  <span className="text-xs text-amber-700 font-semibold bg-amber-50 px-2.5 py-1 rounded border border-amber-200">
-                    Status: Pre-Approval Draft
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3 text-xs">
-                  <div>
-                    <label className="block text-gray-600 mb-1 font-medium">Customer / Broker Name</label>
-                    <input
-                      type="text"
-                      value={editCustomerName}
-                      onChange={(e) => setEditCustomerName(e.target.value)}
-                      className="w-full bg-white border border-gray-300 rounded-lg px-3 py-1.5 text-gray-900 focus:outline-none focus:border-[#007AFF]"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-gray-600 mb-1 font-medium">Billing Email (AP Dept)</label>
-                    <input
-                      type="email"
-                      value={editCustomerEmail}
-                      onChange={(e) => setEditCustomerEmail(e.target.value)}
-                      className="w-full bg-white border border-gray-300 rounded-lg px-3 py-1.5 text-gray-900 focus:outline-none focus:border-[#007AFF]"
-                    />
-                  </div>
-                </div>
-
-                <div className="text-xs">
-                  <label className="block text-gray-600 mb-1 font-medium">Billing Address</label>
-                  <input
-                    type="text"
-                    value={editBillingAddress}
-                    onChange={(e) => setEditBillingAddress(e.target.value)}
-                    className="w-full bg-white border border-gray-300 rounded-lg px-3 py-1.5 text-gray-900 focus:outline-none focus:border-[#007AFF]"
-                  />
-                </div>
-
-                {/* Itemized Line Items Form */}
-                <div className="pt-2">
-                  <h4 className="text-xs font-semibold text-gray-700 mb-2">Extracted Itemized Charges ($ USD)</h4>
-                  <div className="space-y-2.5">
-                    <div className="flex items-center justify-between bg-white p-2.5 rounded-lg border border-gray-200 text-xs">
-                      <span className="text-gray-700">Linehaul Rate (Chicago -&gt; Dallas)</span>
-                      <div className="flex items-center gap-1">
-                        <span className="text-gray-400">$</span>
-                        <input
-                          type="number"
-                          value={editLinehaul}
-                          onChange={(e) => setEditLinehaul(Number(e.target.value))}
-                          className="w-24 bg-gray-50 border border-gray-300 rounded px-2 py-1 text-gray-900 font-semibold text-right"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="flex items-center justify-between bg-white p-2.5 rounded-lg border border-gray-200 text-xs">
-                      <span className="text-gray-700">Agreed Fuel Surcharge (FSC)</span>
-                      <div className="flex items-center gap-1">
-                        <span className="text-gray-400">$</span>
-                        <input
-                          type="number"
-                          value={editFuel}
-                          onChange={(e) => setEditFuel(Number(e.target.value))}
-                          className="w-24 bg-gray-50 border border-gray-300 rounded px-2 py-1 text-gray-900 font-semibold text-right"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="flex items-center justify-between bg-white p-2.5 rounded-lg border border-gray-200 text-xs">
-                      <span className="text-amber-700 font-medium">Lumper Reimbursement (CapStone)</span>
-                      <div className="flex items-center gap-1">
-                        <span className="text-gray-400">$</span>
-                        <input
-                          type="number"
-                          value={editLumper}
-                          onChange={(e) => setEditLumper(Number(e.target.value))}
-                          className="w-24 bg-gray-50 border border-gray-300 rounded px-2 py-1 text-amber-700 font-semibold text-right"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="flex items-center justify-between bg-white p-2.5 rounded-lg border border-gray-200 text-xs">
-                      <span className="text-gray-700">Detention Hours Charge</span>
-                      <div className="flex items-center gap-1">
-                        <span className="text-gray-400">$</span>
-                        <input
-                          type="number"
-                          value={editDetention}
-                          onChange={(e) => setEditDetention(Number(e.target.value))}
-                          className="w-24 bg-gray-50 border border-gray-300 rounded px-2 py-1 text-gray-900 font-semibold text-right"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Total Calculation Card */}
-                <div className="bg-white border border-gray-200 rounded-xl p-3 flex items-center justify-between">
-                  <span className="text-xs font-semibold text-gray-700">Total Invoice Amount:</span>
-                  <span className="text-lg font-bold text-emerald-600 font-mono">
-                    ${(editLinehaul + editFuel + editLumper + editDetention).toLocaleString(undefined, { minimumFractionDigits: 2 })} USD
-                  </span>
-                </div>
-
-                {/* Audit Corrections Log */}
-                <div className="pt-2">
-                  <h4 className="text-[11px] font-semibold text-gray-500 mb-1">Audit Corrections Log:</h4>
-                  <div className="bg-white rounded-lg p-2.5 border border-gray-200 text-[11px] text-gray-700 space-y-1 max-h-24 overflow-y-auto font-mono">
-                    {correctionsLog.map((log, i) => (
-                      <div key={i} className="flex flex-col gap-0.5 border-b border-gray-100 pb-1 last:border-b-0">
-                        <div className="flex items-center justify-between text-gray-800">
-                          <span className="font-semibold text-[#007AFF]">{log.field}: {String(log.newValue)}</span>
-                          <span className="text-[10px] text-gray-400">{log.timestamp}</span>
-                        </div>
-                        {log.reason && <span className="text-gray-500 text-[10px]">{log.reason}</span>}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              {/* Right Panel: Original Paperwork Viewer */}
-              <div className="bg-gray-50 border border-gray-200 rounded-xl p-5 space-y-4">
-                <div className="flex items-center justify-between pb-3 border-b border-gray-200">
-                  <h3 className="text-sm font-bold text-gray-900 flex items-center gap-2">
-                    <FileText className="w-4 h-4 text-emerald-600" />
-                    Original Scanned Paperwork Viewer
-                  </h3>
-
-                  {/* Document Type Selector Tabs */}
-                  <div className="flex items-center gap-1 bg-white p-1 rounded-lg border border-gray-200">
-                    {(['BOL', 'RateConfirmation', 'LumperReceipt'] as const).map((docType) => (
-                      <button
-                        key={docType}
-                        onClick={() => setSelectedDocTab(docType)}
-                        className={`px-2.5 py-1 rounded text-[11px] font-semibold transition-all cursor-pointer ${
-                          selectedDocTab === docType 
-                            ? 'bg-[#007AFF] text-white' 
-                            : 'text-gray-600 hover:text-gray-900'
-                        }`}
-                      >
-                        {docType === 'RateConfirmation' ? 'RateCon' : docType}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Document Display Box */}
-                <div className="bg-white border border-gray-200 rounded-xl p-4 min-h-[360px] flex flex-col justify-between">
-                  {selectedDocTab === 'BOL' && (
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between border-b border-gray-200 pb-2">
-                        <span className="text-xs font-bold text-emerald-700 flex items-center gap-1.5">
-                          <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                          Delivery BOL #BOL-998124 (Original Scan)
-                        </span>
-                        <span className="text-[10px] text-gray-500">Receiver Stamp: Present</span>
-                      </div>
-
-                      <div className="bg-gray-50 rounded-lg p-3 border border-gray-200 text-xs space-y-2">
-                        <p className="text-gray-700 font-mono">
-                          <span className="text-gray-500">Shipper:</span> Chicago Dist Center, 1200 S Damen Ave, Chicago IL
-                        </p>
-                        <p className="text-gray-700 font-mono">
-                          <span className="text-gray-500">Consignee:</span> Dallas Metro Cold Storage, 4400 DC Pkwy, Dallas TX
-                        </p>
-                        <p className="text-gray-700 font-mono">
-                          <span className="text-gray-500">Commodity:</span> Frozen Produce / 22 Pallets / Weight: 42,800 lbs
-                        </p>
-                        <div className="bg-emerald-50 border border-emerald-200 p-2.5 rounded text-[11px] text-emerald-800">
-                          ✓ Signed by Receiver Stamp: "RECEIVED IN GOOD CONDITION - DALLAS WHSE #4 - 09/30/2026 - NO OS&D"
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {selectedDocTab === 'RateConfirmation' && (
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between border-b border-gray-200 pb-2">
-                        <span className="text-xs font-bold text-[#007AFF] flex items-center gap-1.5">
-                          <FileCheck className="w-4 h-4 text-[#007AFF]" />
-                          Rate Confirmation Agreement #CHR-982301
-                        </span>
-                        <span className="text-[10px] text-gray-500">Broker: C.H. Robinson</span>
-                      </div>
-
-                      <div className="bg-gray-50 rounded-lg p-3 border border-gray-200 text-xs space-y-2 font-mono">
-                        <p className="text-gray-800"><span className="text-gray-500">Linehaul Flat Pay:</span> $3,450.00 USD</p>
-                        <p className="text-gray-800"><span className="text-gray-500">Fuel Surcharge (FSC):</span> $420.00 USD</p>
-                        <p className="text-gray-800"><span className="text-gray-500">Equipment Req:</span> 53ft Refrigerated (-10°F Continuous)</p>
-                        <p className="text-gray-800"><span className="text-gray-500">Payment Terms:</span> Net 30 Days via Factoring</p>
-                      </div>
-                    </div>
-                  )}
-
-                  {selectedDocTab === 'LumperReceipt' && (
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between border-b border-gray-200 pb-2">
-                        <span className="text-xs font-bold text-amber-700 flex items-center gap-1.5">
-                          <Coins className="w-4 h-4 text-amber-600" />
-                          CapStone Logistics Lumper Receipt
-                        </span>
-                        <span className="text-[10px] text-gray-500">Amount: $285.00</span>
-                      </div>
-
-                      <div className="bg-gray-50 rounded-lg p-3 border border-gray-200 text-xs space-y-2 font-mono">
-                        <p className="text-gray-800"><span className="text-gray-500">Service:</span> Pallet Unloading & Sorting (22 Pallets)</p>
-                        <p className="text-gray-800"><span className="text-gray-500">Payment Method:</span> Express Code / EFS Check</p>
-                        <p className="text-gray-800"><span className="text-gray-500">Location:</span> Dallas Metro Facility</p>
-                        <p className="text-amber-700 font-semibold">Total Paid: $285.00 (Pass-through reimbursement to carrier)</p>
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="pt-4 border-t border-gray-200 flex justify-end">
-                    <button
-                      onClick={handleUpdateProposedInvoice}
-                      className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-medium text-xs flex items-center gap-2 cursor-pointer"
-                    >
-                      <Check className="w-4 h-4" />
-                      Confirm & Save Verified Invoice
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* STAGE 3: APPROVED INVOICES, CARRIER PDF & ACCOUNTING SYNC */}
-      {activeStage === 3 && (
-        <div className="space-y-6">
-          {/* Action Bar & Search / Filter */}
-          <div className="bg-white border border-gray-200 rounded-2xl p-5 flex flex-col md:flex-row items-center justify-between gap-4 shadow-xs">
-            <div className="flex items-center gap-3 w-full md:w-auto">
-              <div className="relative flex-1 md:w-80">
-                <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                <input
-                  type="text"
-                  placeholder="Search invoice #, customer, load..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full bg-gray-50 border border-gray-200 rounded-xl pl-9 pr-4 py-2 text-xs text-gray-900 focus:outline-none focus:border-[#007AFF]"
-                />
-              </div>
-
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-xs text-gray-700 focus:outline-none focus:border-[#007AFF]"
-              >
-                <option value="all">All Statuses</option>
-                <option value="final_approval">Final Approval</option>
-                <option value="sent">Sent</option>
-                <option value="partially_paid">Partially Paid</option>
-                <option value="reconciled">Reconciled / Paid</option>
-              </select>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setActiveStage(1)}
-                className="px-3.5 py-2 bg-[#007AFF] hover:bg-blue-600 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 cursor-pointer"
-              >
-                <Plus className="w-4 h-4" />
-                New Invoice Intake
-              </button>
-              <button
-                onClick={() => setActiveStage(5)}
-                className="px-3.5 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 cursor-pointer"
-              >
-                <Landmark className="w-4 h-4" />
-                Import Remittance Stub
-              </button>
-            </div>
-          </div>
-
-          {/* Invoices Table */}
-          <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-xs">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs border-collapse">
-                <thead>
-                  <tr className="bg-gray-50 border-b border-gray-200 text-gray-500 uppercase tracking-wider font-semibold">
-                    <th className="p-4">Invoice #</th>
-                    <th className="p-4">Customer / Broker</th>
-                    <th className="p-4">Load #</th>
-                    <th className="p-4">Issue Date</th>
-                    <th className="p-4">Total Amount</th>
-                    <th className="p-4">Balance Due</th>
-                    <th className="p-4">Status</th>
-                    <th className="p-4 text-right">Actions</th>
+            {/* Invoices Table */}
+            <div className="border border-[#E5E5EA] rounded-2xl overflow-hidden bg-white shadow-xs">
+              <table className="w-full text-left text-xs text-gray-800">
+                <thead className="bg-[#F5F5F7] border-b border-gray-200 text-gray-500 font-bold uppercase tracking-wider text-[10px]">
+                  <tr>
+                    <th className="py-3 px-4">Invoice #</th>
+                    <th className="py-3 px-4">Load #</th>
+                    <th className="py-3 px-4">Broker / Shipper Customer</th>
+                    <th className="py-3 px-4">Issue / Due Date</th>
+                    <th className="py-3 px-4">Payment Terms</th>
+                    <th className="py-3 px-4">Status</th>
+                    <th className="py-3 px-4 text-right">Total Amount</th>
+                    <th className="py-3 px-4 text-right">Balance Due</th>
+                    <th className="py-3 px-4 text-center">PDF</th>
+                    <th className="py-3 px-4 text-center">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-200 text-gray-800 font-medium">
-                  {filteredInvoices.length === 0 ? (
-                    <tr>
-                      <td colSpan={8} className="p-8 text-center text-gray-500 italic">
-                        No invoices match search filter.
-                      </td>
-                    </tr>
-                  ) : (
-                    filteredInvoices.map((inv) => (
-                      <tr key={inv.id} className="hover:bg-gray-50 transition-colors">
-                        <td className="p-4 font-mono font-bold text-[#007AFF]">{inv.invoiceNumber}</td>
-                        <td className="p-4 font-medium text-gray-900">{inv.customerName}</td>
-                        <td className="p-4 font-mono text-gray-500">{inv.loadNumber}</td>
-                        <td className="p-4 text-gray-500">{inv.issueDate}</td>
-                        <td className="p-4 font-semibold text-gray-900">${inv.totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
-                        <td className="p-4 font-semibold text-emerald-600">${inv.balanceDue.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
-                        <td className="p-4">
-                          <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold border uppercase tracking-wider ${
-                            inv.status === 'reconciled' || inv.status === 'paid'
-                              ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                              : inv.status === 'sent'
-                              ? 'bg-blue-50 text-blue-700 border-blue-200'
-                              : inv.status === 'partially_paid'
-                              ? 'bg-amber-50 text-amber-700 border-amber-200'
-                              : 'bg-purple-50 text-purple-700 border-purple-200'
+                <tbody className="divide-y divide-gray-150">
+                  {filteredInvoices.map((inv) => {
+                    const isSelected = selectedInvoice?.id === inv.id;
+                    return (
+                      <tr
+                        key={inv.id}
+                        onClick={() => setSelectedInvoice(inv)}
+                        className={`hover:bg-blue-50/40 cursor-pointer transition-colors ${
+                          isSelected ? 'bg-blue-50/60' : ''
+                        }`}
+                      >
+                        <td className="py-3 px-4 font-mono font-extrabold text-gray-950">
+                          #{inv.invoiceNumber}
+                        </td>
+                        <td className="py-3 px-4 font-mono font-bold text-blue-600">
+                          #{inv.loadNumber}
+                        </td>
+                        <td className="py-3 px-4 font-bold text-gray-900">
+                          {inv.customerName}
+                        </td>
+                        <td className="py-3 px-4 text-[11px] text-gray-600 font-mono">
+                          {inv.issueDate} ➔ {inv.dueDate}
+                        </td>
+                        <td className="py-3 px-4 text-gray-700">
+                          {inv.paymentTerms}
+                        </td>
+                        <td className="py-3 px-4">
+                          <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${
+                            inv.status === 'paid' ? 'bg-emerald-100 text-emerald-800 border-emerald-300' :
+                            inv.status === 'invoiced' ? 'bg-purple-100 text-purple-800 border-purple-300' :
+                            inv.status === 'approved' ? 'bg-blue-100 text-blue-800 border-blue-300' :
+                            'bg-amber-100 text-amber-800 border-amber-300'
                           }`}>
-                            {inv.status}
+                            {inv.status === 'needs_review' ? 'Needs Review' : inv.status === 'approved' ? 'Approved' : inv.status === 'invoiced' ? 'Factored' : 'Paid'}
                           </span>
                         </td>
-                        <td className="p-4 text-right">
-                          <div className="flex items-center justify-end gap-1.5">
-                            {/* PDF Generation Link */}
+                        <td className="py-3 px-4 text-right font-mono font-extrabold text-gray-950">
+                          ${inv.totalAmount.toLocaleString()}
+                        </td>
+                        <td className="py-3 px-4 text-right font-mono font-extrabold text-amber-700">
+                          ${inv.balanceDue.toLocaleString()}
+                        </td>
+                        <td className="py-3 px-4 text-center">
+                          <button
+                            onClick={(e) => handleDownloadInvoicePDF(inv, e)}
+                            className="px-2 py-1 bg-white hover:bg-gray-100 text-gray-800 border border-gray-300 rounded text-[11px] font-bold flex items-center gap-1 mx-auto cursor-pointer"
+                            title="Download PDF Invoice"
+                          >
+                            <FileDown className="w-3 h-3 text-blue-600" />
+                            <span>PDF</span>
+                          </button>
+                        </td>
+                        <td className="py-3 px-4 text-center">
+                          {inv.status !== 'paid' ? (
                             <button
-                              onClick={() => handleDownloadInvoicePDF(inv)}
-                              title="Download Official Carrier Invoice PDF (Real Billing Data)"
-                              className="px-2.5 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-lg border border-gray-300 flex items-center gap-1 font-semibold text-[11px] cursor-pointer"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onUpdateInvoiceStatus(inv.id, 'paid');
+                                showToast(`Marked Invoice #${inv.invoiceNumber} as Paid!`);
+                              }}
+                              className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-[11px] font-bold cursor-pointer"
                             >
-                              <Download className="w-3.5 h-3.5 text-gray-600" />
-                              PDF
+                              Mark Paid
                             </button>
-
-                            {/* Prepare Email Dispatch Link */}
-                            <button
-                              onClick={() => handlePrepareEmailForInvoice(inv)}
-                              title="Approve Billing Email via Gmail API"
-                              className="px-2.5 py-1.5 bg-[#007AFF] hover:bg-blue-600 text-white rounded-lg flex items-center gap-1 font-semibold text-[11px] cursor-pointer"
-                            >
-                              <Send className="w-3.5 h-3.5" />
-                              Email
-                            </button>
-                          </div>
+                          ) : (
+                            <span className="text-[11px] text-emerald-700 font-bold">Settled</span>
+                          )}
                         </td>
                       </tr>
-                    ))
+                    );
+                  })}
+                  {filteredInvoices.length === 0 && (
+                    <tr>
+                      <td colSpan={10} className="py-12 text-center text-gray-400">
+                        No invoices match your search criteria.
+                      </td>
+                    </tr>
                   )}
                 </tbody>
               </table>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* STAGE 4: GMAIL API EMAIL BILLING APPROVAL WORKBENCH */}
-      {activeStage === 4 && selectedInvoice && (
-        <div className="space-y-6">
-          <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-xs">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
-              <div>
-                <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-                  <Send className="w-5 h-5 text-[#007AFF]" />
-                  Approve Billing Email (Google Workspace Gmail API)
-                </h2>
-                <p className="text-gray-500 text-xs mt-0.5">
-                  The program shows the recipient, invoice, and attachments before sending. Document processing stays local; email needs internet.
-                </p>
+        {/* TAB 2: SPOT FREIGHT BIDDING MATRIX */}
+        {activeTab === 'bidding' && (
+          <div className="space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-1.5 overflow-x-auto text-xs">
+                {['all', 'won', 'submitted', 'countered'].map(bf => (
+                  <button
+                    key={bf}
+                    onClick={() => setBidFilter(bf as any)}
+                    className={`px-3 py-1 rounded-md text-[11px] font-bold cursor-pointer transition-colors ${
+                      bidFilter === bf
+                        ? 'bg-purple-700 text-white shadow-2xs'
+                        : 'bg-white text-gray-600 hover:text-gray-950 border border-gray-200'
+                    }`}
+                  >
+                    {bf === 'all' ? 'All Bids' : bf === 'won' ? 'Won / Booked' : bf === 'submitted' ? 'Pending Review' : 'Countered'}
+                  </button>
+                ))}
               </div>
 
               <button
-                onClick={() => setActiveStage(3)}
-                className="px-3.5 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-300 rounded-xl text-xs font-medium cursor-pointer"
+                onClick={() => setShowNewBidModal(true)}
+                className="px-3.5 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-xs"
               >
-                Back to Invoice Table
+                <Plus className="w-3.5 h-3.5" />
+                <span>Submit Freight Spot Bid</span>
               </button>
             </div>
 
-            {/* Local vs Internet Connectivity Indicator */}
-            <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 mb-6 flex items-center justify-between text-xs">
-              <div className="flex items-center gap-2 text-emerald-700">
-                <Laptop className="w-4 h-4 text-emerald-600" />
-                <span>Local Document Processing: Active (OCR & Audit local)</span>
-              </div>
-              <div className="flex items-center gap-2 text-blue-700">
-                <Wifi className="w-4 h-4 text-[#007AFF]" />
-                <span>Internet Connectivity: Active (Google Workspace Gmail API Connected)</span>
-              </div>
+            {/* Bids Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {filteredBids.map(bid => {
+                const isWon = bid.status === 'won';
+                return (
+                  <div
+                    key={bid.id}
+                    className="bg-white border border-gray-200/90 hover:border-gray-300 rounded-2xl p-5 shadow-xs space-y-3.5 text-left transition-all"
+                  >
+                    <div className="flex items-start justify-between gap-2 pb-3 border-b border-gray-150">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-mono font-extrabold text-gray-950 px-2 py-0.5 rounded-md bg-gray-100 border border-gray-200">
+                            #{bid.tenderNumber}
+                          </span>
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                            bid.status === 'won' ? 'bg-emerald-100 text-emerald-800 border-emerald-300' :
+                            bid.status === 'countered' ? 'bg-amber-100 text-amber-800 border-amber-300' :
+                            'bg-blue-100 text-blue-800 border-blue-300'
+                          }`}>
+                            {bid.status === 'won' ? 'Won & Agreed' : bid.status === 'countered' ? 'Countered' : 'Pending Review'}
+                          </span>
+                        </div>
+                        <div className="text-xs font-bold text-gray-900 mt-1.5">
+                          {bid.brokerName}
+                        </div>
+                      </div>
+
+                      <div className="text-right">
+                        <div className="text-base font-extrabold text-purple-700 font-mono">
+                          ${bid.ourBidAmount.toLocaleString()} USD
+                        </div>
+                        <div className="text-[10px] text-gray-500 font-mono">
+                          ${bid.ratePerMile.toFixed(2)}/mi · {bid.loadedMiles} mi
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Corridor */}
+                    <div className="p-3 rounded-xl bg-[#F5F5F7] border border-gray-200 flex items-center justify-between text-xs font-semibold">
+                      <div className="flex items-center gap-1 text-gray-900">
+                        <MapPin className="w-3.5 h-3.5 text-blue-600" />
+                        <span>{bid.originCity}, {bid.originState}</span>
+                      </div>
+                      <div className="text-gray-400 font-bold text-[11px]">
+                        ────➔
+                      </div>
+                      <div className="flex items-center gap-1 text-gray-900">
+                        <MapPin className="w-3.5 h-3.5 text-emerald-600" />
+                        <span>{bid.destCity}, {bid.destState}</span>
+                      </div>
+                    </div>
+
+                    {/* Financial details & Driver */}
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div className="p-2.5 rounded-xl bg-white border border-gray-200">
+                        <span className="text-[10px] text-gray-400 font-bold uppercase block">Broker Target</span>
+                        <strong className="text-xs text-gray-700 font-mono block mt-0.5">
+                          ${bid.initialBrokerOffer.toLocaleString()} USD
+                        </strong>
+                      </div>
+                      <div className="p-2.5 rounded-xl bg-white border border-gray-200">
+                        <span className="text-[10px] text-gray-400 font-bold uppercase block">Equipment</span>
+                        <strong className="text-xs text-gray-700 font-mono block mt-0.5">
+                          {bid.equipmentType}
+                        </strong>
+                      </div>
+                    </div>
+
+                    <div className="text-[11px] text-gray-500 italic bg-gray-50 p-2 rounded-lg border border-gray-150">
+                      "{bid.notes}"
+                    </div>
+
+                    {/* Actions */}
+                    <div className="pt-2 border-t border-gray-150 flex items-center justify-between">
+                      <span className="text-[11px] text-gray-600 font-medium">
+                        Driver: <strong>{bid.driverAssignment}</strong>
+                      </span>
+
+                      {isWon ? (
+                        <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-3 py-1 rounded-lg border border-emerald-200 flex items-center gap-1">
+                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                          <span>Active in Dispatch</span>
+                        </span>
+                      ) : (
+                        <button
+                          onClick={() => handleConvertBidToLoad(bid)}
+                          className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold flex items-center gap-1 cursor-pointer shadow-2xs"
+                        >
+                          <Check className="w-3.5 h-3.5" />
+                          <span>Win Bid & Dispatch Load</span>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
+          </div>
+        )}
 
-            {/* Email Form & Preview */}
-            <div className="bg-gray-50 border border-gray-200 rounded-xl p-5 space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
-                <div>
-                  <label className="block text-gray-600 mb-1 font-medium">Recipient Email Address (Customer AP)</label>
-                  <input
-                    type="email"
-                    value={emailTo}
-                    onChange={(e) => setEmailTo(e.target.value)}
-                    className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-gray-900 focus:outline-none focus:border-[#007AFF]"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-gray-600 mb-1 font-medium">Email Subject Line</label>
-                  <input
-                    type="text"
-                    value={emailSubject}
-                    onChange={(e) => setEmailSubject(e.target.value)}
-                    className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-gray-900 focus:outline-none focus:border-[#007AFF]"
-                  />
-                </div>
-              </div>
-
-              {/* Attachments Checklist */}
-              <div className="bg-white rounded-lg p-3 border border-gray-200 text-xs">
-                <h4 className="text-gray-700 font-semibold mb-2 flex items-center gap-2">
-                  <FileText className="w-4 h-4 text-emerald-600" />
-                  Attached Billing Documentation Packet:
-                </h4>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-gray-700">
-                  <div className="bg-gray-50 p-2 rounded border border-gray-200 flex items-center gap-1.5">
-                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                    <span className="truncate">Invoice #{selectedInvoice.invoiceNumber}.pdf</span>
-                  </div>
-                  <div className="bg-gray-50 p-2 rounded border border-gray-200 flex items-center gap-1.5">
-                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                    <span className="truncate">Signed_BOL_998124.pdf</span>
-                  </div>
-                  <div className="bg-gray-50 p-2 rounded border border-gray-200 flex items-center gap-1.5">
-                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                    <span className="truncate">RateCon_982301.pdf</span>
-                  </div>
-                  <div className="bg-gray-50 p-2 rounded border border-gray-200 flex items-center gap-1.5">
-                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                    <span className="truncate">Lumper_CapStone_285.pdf</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Email Body Text Area */}
+        {/* TAB 3: FACTORING & QUICKPAY */}
+        {activeTab === 'factoring' && (
+          <div className="space-y-4">
+            <div className="p-5 rounded-2xl bg-white border border-gray-200 shadow-xs flex flex-wrap items-center justify-between gap-4">
               <div>
-                <label className="block text-gray-600 mb-1 text-xs font-medium">Notice of Assignment & Email Body Content</label>
-                <textarea
-                  rows={10}
-                  value={emailBody}
-                  onChange={(e) => setEmailBody(e.target.value)}
-                  className="w-full bg-white border border-gray-300 rounded-lg p-3 text-xs font-mono text-gray-900 focus:outline-none focus:border-[#007AFF]"
-                />
+                <h3 className="text-sm font-bold text-gray-950 flex items-center gap-2">
+                  <Landmark className="w-4 h-4 text-blue-600" />
+                  <span>Freight Factoring Hub (Instant AR Liquidity)</span>
+                </h3>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  Direct submission to {factoringCompany} with auto-attached Rate Con, signed BOL, and Notice of Assignment (NOA).
+                </p>
               </div>
 
-              {/* Action Button */}
-              <div className="pt-2 flex justify-end">
-                <button
-                  onClick={handleSendBillingEmail}
-                  disabled={isSendingEmail}
-                  className="px-6 py-3 bg-[#007AFF] hover:bg-blue-600 text-white rounded-xl font-bold text-xs flex items-center gap-2 transition-all disabled:opacity-50 cursor-pointer"
+              <div className="flex items-center gap-3">
+                <select
+                  value={factoringCompany}
+                  onChange={(e) => setFactoringCompany(e.target.value as any)}
+                  className="bg-[#F5F5F7] border border-gray-300 rounded-lg px-3 py-1.5 text-xs font-bold text-gray-800 cursor-pointer"
                 >
-                  <Send className={`w-4 h-4 ${isSendingEmail ? 'animate-bounce' : ''}`} />
-                  {isSendingEmail ? 'Dispatching via Gmail API...' : 'Approve & Send Billing Email Now'}
+                  <option value="TriumphPay">TriumphPay (Primary Factor)</option>
+                  <option value="RTS Financial">RTS Financial</option>
+                  <option value="Apex Capital">Apex Capital</option>
+                </select>
+
+                <button
+                  onClick={handleSubmitFactoringBatch}
+                  disabled={selectedFactoringIds.length === 0 || isSubmittingFactoring}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-xs disabled:opacity-40"
+                >
+                  {isSubmittingFactoring ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+                  <span>Submit Selected Batch ({selectedFactoringIds.length})</span>
                 </button>
               </div>
             </div>
+
+            {/* Invoices Eligible for Factoring */}
+            <div className="border border-[#E5E5EA] rounded-2xl overflow-hidden bg-white shadow-xs">
+              <table className="w-full text-left text-xs text-gray-800">
+                <thead className="bg-[#F5F5F7] border-b border-gray-200 text-gray-500 font-bold uppercase tracking-wider text-[10px]">
+                  <tr>
+                    <th className="py-3 px-4 w-10 text-center">
+                      <input
+                        type="checkbox"
+                        checked={selectedFactoringIds.length === invoices.length && invoices.length > 0}
+                        onChange={(e) => {
+                          if (e.target.checked) setSelectedFactoringIds(invoices.map(i => i.id));
+                          else setSelectedFactoringIds([]);
+                        }}
+                      />
+                    </th>
+                    <th className="py-3 px-4">Invoice #</th>
+                    <th className="py-3 px-4">Load #</th>
+                    <th className="py-3 px-4">Broker</th>
+                    <th className="py-3 px-4">Net Gross</th>
+                    <th className="py-3 px-4">Factoring Advance (97%)</th>
+                    <th className="py-3 px-4">Factoring Fee (3%)</th>
+                    <th className="py-3 px-4">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-150">
+                  {invoices.map(inv => {
+                    const isChecked = selectedFactoringIds.includes(inv.id);
+                    const advanceAmt = inv.totalAmount * 0.97;
+                    const feeAmt = inv.totalAmount * 0.03;
+
+                    return (
+                      <tr key={inv.id} className="hover:bg-gray-50">
+                        <td className="py-3 px-4 text-center">
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={(e) => {
+                              if (e.target.checked) setSelectedFactoringIds(prev => [...prev, inv.id]);
+                              else setSelectedFactoringIds(prev => prev.filter(id => id !== inv.id));
+                            }}
+                          />
+                        </td>
+                        <td className="py-3 px-4 font-mono font-bold text-gray-950">#{inv.invoiceNumber}</td>
+                        <td className="py-3 px-4 font-mono font-bold text-blue-600">#{inv.loadNumber}</td>
+                        <td className="py-3 px-4 font-bold text-gray-900">{inv.customerName}</td>
+                        <td className="py-3 px-4 font-mono font-extrabold text-gray-950">${inv.totalAmount.toLocaleString()}</td>
+                        <td className="py-3 px-4 font-mono font-bold text-emerald-700">${advanceAmt.toFixed(2)}</td>
+                        <td className="py-3 px-4 font-mono text-gray-500">${feeAmt.toFixed(2)}</td>
+                        <td className="py-3 px-4">
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                            Eligible
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* MODAL: SUBMIT SPOT FREIGHT BID */}
+      {showNewBidModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl border border-gray-200 max-w-xl w-full p-6 shadow-2xl space-y-4 text-left">
+            <div className="flex items-center justify-between pb-3 border-b border-gray-150">
+              <div className="flex items-center gap-2">
+                <TrendingUp className="w-5 h-5 text-purple-600" />
+                <h3 className="text-sm font-bold text-gray-950">Place Spot Rate Freight Bid</h3>
+              </div>
+              <button onClick={() => setShowNewBidModal(false)} className="text-gray-400 hover:text-gray-700 cursor-pointer">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveSpotBid} className="space-y-3.5 text-xs">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-gray-600 font-bold mb-1">Broker Name *</label>
+                  <input
+                    type="text"
+                    required
+                    value={bidBroker}
+                    onChange={(e) => setBidBroker(e.target.value)}
+                    className="w-full bg-[#F5F5F7] border border-gray-300 rounded-lg px-3 py-1.5 text-gray-900 font-bold"
+                  />
+                </div>
+                <div>
+                  <label className="block text-gray-600 font-bold mb-1">Broker Tender Email *</label>
+                  <input
+                    type="email"
+                    required
+                    value={bidBrokerEmail}
+                    onChange={(e) => setBidBrokerEmail(e.target.value)}
+                    className="w-full bg-[#F5F5F7] border border-gray-300 rounded-lg px-3 py-1.5 text-gray-900"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                <div>
+                  <label className="block text-gray-600 font-bold mb-1">Origin City</label>
+                  <input
+                    type="text"
+                    value={bidOriginCity}
+                    onChange={(e) => setBidOriginCity(e.target.value)}
+                    className="w-full bg-[#F5F5F7] border border-gray-300 rounded-lg px-3 py-1.5 text-gray-900"
+                  />
+                </div>
+                <div>
+                  <label className="block text-gray-600 font-bold mb-1">Origin ST</label>
+                  <input
+                    type="text"
+                    value={bidOriginState}
+                    onChange={(e) => setBidOriginState(e.target.value)}
+                    className="w-full bg-[#F5F5F7] border border-gray-300 rounded-lg px-3 py-1.5 text-gray-900 font-mono"
+                  />
+                </div>
+                <div>
+                  <label className="block text-gray-600 font-bold mb-1">Dest City</label>
+                  <input
+                    type="text"
+                    value={bidDestCity}
+                    onChange={(e) => setBidDestCity(e.target.value)}
+                    className="w-full bg-[#F5F5F7] border border-gray-300 rounded-lg px-3 py-1.5 text-gray-900"
+                  />
+                </div>
+                <div>
+                  <label className="block text-gray-600 font-bold mb-1">Dest ST</label>
+                  <input
+                    type="text"
+                    value={bidDestState}
+                    onChange={(e) => setBidDestState(e.target.value)}
+                    className="w-full bg-[#F5F5F7] border border-gray-300 rounded-lg px-3 py-1.5 text-gray-900 font-mono"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-gray-600 font-bold mb-1">Loaded Miles *</label>
+                  <input
+                    type="number"
+                    value={bidMiles}
+                    onChange={(e) => setBidMiles(Number(e.target.value))}
+                    className="w-full bg-[#F5F5F7] border border-gray-300 rounded-lg px-3 py-1.5 text-gray-900 font-mono font-bold"
+                  />
+                </div>
+                <div>
+                  <label className="block text-gray-600 font-bold mb-1">Broker Posted ($)</label>
+                  <input
+                    type="number"
+                    value={bidBrokerOriginal}
+                    onChange={(e) => setBidBrokerOriginal(Number(e.target.value))}
+                    className="w-full bg-[#F5F5F7] border border-gray-300 rounded-lg px-3 py-1.5 text-gray-900 font-mono"
+                  />
+                </div>
+                <div>
+                  <label className="block text-gray-600 font-bold mb-1">Our Bid Offer ($) *</label>
+                  <input
+                    type="number"
+                    value={bidOffer}
+                    onChange={(e) => setBidOffer(Number(e.target.value))}
+                    className="w-full bg-purple-50 border border-purple-300 rounded-lg px-3 py-1.5 text-purple-900 font-mono font-extrabold"
+                  />
+                </div>
+              </div>
+
+              {/* Dynamic Calculation HUD */}
+              <div className="p-3 rounded-xl bg-[#F5F5F7] border border-gray-200 grid grid-cols-3 gap-2 font-mono text-center">
+                <div>
+                  <span className="text-[10px] text-gray-400 block">Rate / Mile</span>
+                  <strong className="text-xs text-blue-600 block mt-0.5">${calculatedBidRPM}/mi</strong>
+                </div>
+                <div>
+                  <span className="text-[10px] text-gray-400 block">Driver Pay (65%)</span>
+                  <strong className="text-xs text-gray-800 block mt-0.5">${estimatedDriverCut.toFixed(2)}</strong>
+                </div>
+                <div>
+                  <span className="text-[10px] text-gray-400 block">Est Net Profit</span>
+                  <strong className="text-xs text-emerald-600 block mt-0.5">${estimatedNetMargin.toFixed(2)}</strong>
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowNewBidModal(false)}
+                  className="px-4 py-2 border border-gray-300 rounded-xl text-gray-700 font-bold cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-xl font-bold cursor-pointer shadow-xs"
+                >
+                  Transmit Spot Bid
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
 
-      {/* STAGE 5: PAYMENT REMITTANCE IMPORT & RECONCILIATION */}
-      {activeStage === 5 && (
-        <div className="space-y-6">
-          <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-xs">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
-              <div>
-                <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-                  <Landmark className="w-5 h-5 text-purple-600" />
-                  Import Payment Documents & Reconciliation
-                </h2>
-                <p className="text-gray-500 text-xs mt-0.5">
-                  Import payment documents. The program proposes which invoices to apply payments to, and you confirm receipt before they’re marked paid.
-                </p>
+      {/* MODAL: NEW INVOICE MANUAL CREATION */}
+      {showNewInvoiceModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl border border-gray-200 max-w-xl w-full p-6 shadow-2xl space-y-4 text-left">
+            <div className="flex items-center justify-between pb-3 border-b border-gray-150">
+              <div className="flex items-center gap-2">
+                <ReceiptText className="w-5 h-5 text-blue-600" />
+                <h3 className="text-sm font-bold text-gray-950">Create Carrier Billing Invoice</h3>
               </div>
-
-              <button
-                onClick={() => setActiveStage(3)}
-                className="px-3.5 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-300 rounded-xl text-xs font-medium cursor-pointer"
-              >
-                Back to Invoice Table
+              <button onClick={() => setShowNewInvoiceModal(false)} className="text-gray-400 hover:text-gray-700 cursor-pointer">
+                <X className="w-5 h-5" />
               </button>
             </div>
 
-            {/* Quick Upload Action Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-              <div className="bg-gray-50 border border-gray-200 rounded-xl p-5 space-y-3">
-                <h3 className="text-xs font-bold text-gray-900 flex items-center gap-2">
-                  <Upload className="w-4 h-4 text-purple-600" />
-                  Select Payment Document to Import
-                </h3>
-                <p className="text-xs text-gray-500">
-                  Select ACH advice, bank remittance stub, or check voucher to auto-parse payment amounts and invoice numbers.
-                </p>
-
-                <div className="flex gap-2 pt-2">
-                  <button
-                    onClick={() => handleImportRemittanceDoc('Remittance_CH_Robinson_ACH_998201.pdf')}
-                    className="px-3 py-2 bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 rounded-xl text-xs font-medium flex items-center gap-1.5 cursor-pointer"
-                  >
-                    <FileText className="w-3.5 h-3.5" />
-                    C.H. Robinson Remittance Stub
-                  </button>
-
-                  <button
-                    onClick={() => handleImportRemittanceDoc('Check_Echo_Logistics_44102.pdf')}
-                    className="px-3 py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-xl text-xs font-medium flex items-center gap-1.5 cursor-pointer"
-                  >
-                    <FileText className="w-3.5 h-3.5" />
-                    Echo Logistics Check
-                  </button>
+            <form onSubmit={handleCreateManualInvoice} className="space-y-3 text-xs">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-gray-600 font-bold mb-1">Invoice Number *</label>
+                  <input
+                    type="text"
+                    required
+                    value={newInvNo}
+                    onChange={(e) => setNewInvNo(e.target.value)}
+                    className="w-full bg-[#F5F5F7] border border-gray-300 rounded-lg px-3 py-1.5 text-gray-900 font-mono font-bold"
+                  />
+                </div>
+                <div>
+                  <label className="block text-gray-600 font-bold mb-1">Load # *</label>
+                  <input
+                    type="text"
+                    required
+                    value={newInvLoadNo}
+                    onChange={(e) => setNewInvLoadNo(e.target.value)}
+                    className="w-full bg-[#F5F5F7] border border-gray-300 rounded-lg px-3 py-1.5 text-gray-900 font-mono"
+                  />
                 </div>
               </div>
 
-              {/* Proposed Match Display Box */}
-              {matchingInvoice && (
-                <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-5 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-emerald-800 flex items-center gap-1.5">
-                      <Sparkles className="w-4 h-4 text-emerald-600" />
-                      Proposed Match Found
-                    </span>
-                    <span className="text-[10px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded border border-emerald-200 font-mono">
-                      100% Match
-                    </span>
-                  </div>
-
-                  <div className="text-xs space-y-1.5 text-gray-800 font-mono">
-                    <p><span className="text-gray-500">Remittance File:</span> {remittanceFileName}</p>
-                    <p><span className="text-gray-500">Payer:</span> {remittancePayer}</p>
-                    <p><span className="text-gray-500">Ref #:</span> {remittanceRef}</p>
-                    <p><span className="text-gray-500">Target Invoice:</span> #{matchingInvoice.invoiceNumber} (Load #{matchingInvoice.loadNumber})</p>
-                    <p className="text-emerald-700 font-bold"><span className="text-gray-500">Payment Amount:</span> ${remittanceAmount.toLocaleString()} USD</p>
-                  </div>
-
-                  <button
-                    onClick={handleConfirmPaymentReceipt}
-                    className="w-full py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-xs flex items-center justify-center gap-2 cursor-pointer"
-                  >
-                    <CheckCircle2 className="w-4 h-4" />
-                    Confirm Payment Receipt & Mark Reconciled / Paid
-                  </button>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-gray-600 font-bold mb-1">Customer / Broker *</label>
+                  <input
+                    type="text"
+                    required
+                    value={newInvCustomer}
+                    onChange={(e) => setNewInvCustomer(e.target.value)}
+                    className="w-full bg-[#F5F5F7] border border-gray-300 rounded-lg px-3 py-1.5 text-gray-900 font-bold"
+                  />
                 </div>
-              )}
-            </div>
+                <div>
+                  <label className="block text-gray-600 font-bold mb-1">AP Email *</label>
+                  <input
+                    type="email"
+                    required
+                    value={newInvEmail}
+                    onChange={(e) => setNewInvEmail(e.target.value)}
+                    className="w-full bg-[#F5F5F7] border border-gray-300 rounded-lg px-3 py-1.5 text-gray-900"
+                  />
+                </div>
+              </div>
+
+              {/* Line items */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-gray-600 font-bold mb-1">Linehaul ($) *</label>
+                  <input
+                    type="number"
+                    value={newInvLinehaul}
+                    onChange={(e) => setNewInvLinehaul(Number(e.target.value))}
+                    className="w-full bg-[#F5F5F7] border border-gray-300 rounded-lg px-3 py-1.5 text-gray-900 font-mono font-bold"
+                  />
+                </div>
+                <div>
+                  <label className="block text-gray-600 font-bold mb-1">Fuel Surcharge ($)</label>
+                  <input
+                    type="number"
+                    value={newInvFuel}
+                    onChange={(e) => setNewInvFuel(Number(e.target.value))}
+                    className="w-full bg-[#F5F5F7] border border-gray-300 rounded-lg px-3 py-1.5 text-gray-900 font-mono"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-gray-600 font-bold mb-1">Lumper Reimbursement ($)</label>
+                  <input
+                    type="number"
+                    value={newInvLumper}
+                    onChange={(e) => setNewInvLumper(Number(e.target.value))}
+                    className="w-full bg-[#F5F5F7] border border-gray-300 rounded-lg px-3 py-1.5 text-gray-900 font-mono"
+                  />
+                </div>
+                <div>
+                  <label className="block text-gray-600 font-bold mb-1">Detention Fee ($)</label>
+                  <input
+                    type="number"
+                    value={newInvDetention}
+                    onChange={(e) => setNewInvDetention(Number(e.target.value))}
+                    className="w-full bg-[#F5F5F7] border border-gray-300 rounded-lg px-3 py-1.5 text-gray-900 font-mono"
+                  />
+                </div>
+              </div>
+
+              <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-between">
+                <span className="font-bold text-emerald-900">Total Invoice Amount:</span>
+                <span className="text-base font-extrabold text-emerald-800 font-mono">
+                  ${(newInvLinehaul + newInvFuel + newInvLumper + newInvDetention).toLocaleString()} USD
+                </span>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowNewInvoiceModal(false)}
+                  className="px-4 py-2 border border-gray-300 rounded-xl text-gray-700 font-bold cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold cursor-pointer shadow-xs"
+                >
+                  Create & Lock Invoice
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

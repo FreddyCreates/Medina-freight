@@ -19,6 +19,7 @@ export interface CompanyProfile {
   state: string;
   zip: string;
   factoringCompanyName: string;
+  factoringCompany?: string;
   factoringRemitAddress: string;
   factoringBankName: string;
   factoringRoutingNumber: string;
@@ -28,9 +29,46 @@ export interface CompanyProfile {
   defaultRatePerMileFloor: number;
 }
 
+export interface DriverVaultDocument {
+  id: string;
+  title: string;
+  type: 'CDL' | 'MedicalCard' | 'W9_Contract' | 'DQF' | 'Inspection' | 'CabCard' | 'DrugTest' | 'Custom';
+  fileName: string;
+  fileSize?: string;
+  uploadDate: string;
+  expiryDate?: string;
+  status: 'valid' | 'expiring_soon' | 'expired';
+  notes?: string;
+  fileUrl?: string;
+}
+
+export interface DriverMemoryNote {
+  id: string;
+  category: 'preference' | 'operational' | 'safety' | 'lane_history' | 'personal';
+  title: string;
+  content: string;
+  author: string;
+  timestamp: string;
+}
+
+export interface DriverSettlementRecord {
+  id: string;
+  settlementNumber: string;
+  weekEnding: string;
+  loadNumbers: string[];
+  grossRevenue: number;
+  driverPayRate: number; // e.g. 0.65 (65%)
+  grossPay: number;
+  deductionsTotal: number;
+  netPay: number;
+  status: 'paid' | 'pending' | 'processing';
+  paidDate?: string;
+}
+
 export interface FleetDriver {
   id: string;
   name: string;
+  role?: string;
   phone: string;
   email: string;
   cdlNumber: string;
@@ -45,6 +83,20 @@ export interface FleetDriver {
   hOSRemainingHours: number;
   medicalCardExpiry: string;
   hireDate: string;
+  // Driver Account & Memory Vault additions:
+  avatarBg?: string;
+  pinCode?: string;
+  payModel?: string; // e.g. "65% of Load Revenue" or "$0.75/mile"
+  totalMilesDriven?: number;
+  lifetimeLoadsCount?: number;
+  lifetimeEarnings?: number;
+  endorsements?: string[];
+  preferredLanes?: string[];
+  driverNotes?: DriverMemoryNote[];
+  vaultDocuments?: DriverVaultDocument[];
+  settlements?: DriverSettlementRecord[];
+  emergencyContactName?: string;
+  emergencyContactPhone?: string;
 }
 
 export interface FreightEstimate {
@@ -62,8 +114,10 @@ export interface FreightEstimate {
   equipmentType: '53ft Dry Van' | '53ft Reefer' | 'Flatbed' | 'Stepdeck' | 'Power Only';
   loadedMiles: number;
   deadheadMiles: number;
+  totalMiles?: number;
   ratePerMile: number;
   linehaulTotal: number;
+  baseLinehaul?: number;
   fuelSurchargePerMile: number;
   fuelSurchargeTotal: number;
   accessorials: Array<{ id: string; name: string; amount: number }>;
@@ -87,7 +141,8 @@ export type DocumentType =
   | 'RateConfirmation' 
   | 'LumperReceipt' 
   | 'WeightTicket' 
-  | 'RemittanceAdvice';
+  | 'RemittanceAdvice'
+  | 'Custom';
 
 export interface Collaborator {
   id: string;
@@ -172,14 +227,14 @@ export interface ProposedInvoice {
   totalAmount: number;
   amountPaid: number;
   balanceDue: number;
-  status: 'draft' | 'needs_review' | 'pre_approval' | 'final_approval' | 'ready_to_send' | 'sent' | 'partially_paid' | 'paid' | 'reconciled' | 'void';
+  status: 'draft' | 'needs_review' | 'pre_approval' | 'final_approval' | 'ready_to_send' | 'sent' | 'partially_paid' | 'paid' | 'reconciled' | 'void' | 'invoiced' | 'approved';
   attachedDocIds: string[];
   approvalNotes?: string;
   reviewedBy?: string;
   reviewedAt?: string;
   factoringBatchNumber?: string;
-  factoringStatus?: 'unassigned' | 'submitted' | 'funded' | 'direct_billed';
-  correctionsLog: Array<{
+  factoringStatus?: 'unassigned' | 'submitted' | 'funded' | 'direct_billed' | 'eligible';
+  correctionsLog?: Array<{
     field: string;
     oldValue: string | number;
     newValue: string | number;
@@ -310,6 +365,8 @@ export interface Project {
   linehaulPay: number;
   fuelSurcharge: number;
   equipmentType: '53ft Dry Van' | '53ft Reefer' | 'Flatbed' | 'Stepdeck';
+  reeferSetpoint?: string;
+  progress?: number;
   commodities: string;
   commodity?: string;
   weightLbs: number;

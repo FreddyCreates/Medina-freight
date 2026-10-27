@@ -108,11 +108,19 @@ export const AgenticInboxTriageDashboard: React.FC<AgenticInboxTriageDashboardPr
   }, []);
 
   useEffect(() => {
-    localStorage.setItem('alvys_triage_rules', JSON.stringify(rules));
+    try {
+      localStorage.setItem('alvys_triage_rules', JSON.stringify(rules));
+    } catch (e) {
+      console.warn('LocalStorage quota exceeded for triage rules:', e);
+    }
   }, [rules]);
 
   useEffect(() => {
-    localStorage.setItem('alvys_triaged_threads', JSON.stringify(threads));
+    try {
+      localStorage.setItem('alvys_triaged_threads', JSON.stringify(threads));
+    } catch (e) {
+      console.warn('LocalStorage quota exceeded for triaged threads:', e);
+    }
   }, [threads]);
 
   const showToast = (msg: string) => {

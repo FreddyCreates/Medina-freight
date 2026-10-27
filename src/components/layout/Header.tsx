@@ -9,7 +9,9 @@ import {
   Bot, 
   Globe, 
   ShieldCheck, 
-  Cpu 
+  Cpu,
+  HardDrive,
+  Sparkles
 } from 'lucide-react';
 
 interface HeaderProps {
@@ -23,6 +25,7 @@ interface HeaderProps {
   onQuickGeneratePDF: () => void;
   activeAgentsCount: number;
   autoPilotEnabled?: boolean;
+  onToggleMobileSidebar?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -36,27 +39,42 @@ export const Header: React.FC<HeaderProps> = ({
   onQuickGeneratePDF,
   activeAgentsCount,
   autoPilotEnabled = true,
+  onToggleMobileSidebar,
 }) => {
   const activeCollaborators = collaborators.filter(c => c.status === 'active' || c.status === 'in_review');
 
   return (
-    <header className="flex items-center justify-between px-6 py-3 bg-white border-b border-gray-200 sticky top-0 z-40 shrink-0 select-none shadow-xs">
-      {/* Zone 1: Wordmark */}
-      <div 
-        onClick={onOpenCompanyModal}
-        className="text-lg font-bold tracking-tight text-gray-900 flex items-center gap-2.5 group cursor-pointer"
-        title="Click to edit real company legal name, DOT #, MC #, and dispatch email"
-      >
-        <span className="w-8 h-8 rounded-lg bg-gray-100 border border-gray-200 flex items-center justify-center text-gray-800 font-bold text-xs">
-          AF
-        </span>
-        <div className="flex flex-col text-left">
-          <span className="font-extrabold tracking-tight text-sm leading-tight text-gray-900 group-hover:text-[#007AFF] transition-colors">
-            {companyProfile?.companyName || 'Your Carrier Name LLC'}
+    <header className="flex items-center justify-between px-4 sm:px-6 py-3 bg-white border-b border-gray-200 sticky top-0 z-40 shrink-0 select-none shadow-xs">
+      {/* Zone 1: Wordmark & Mobile Hamburger */}
+      <div className="flex items-center gap-2">
+        {onToggleMobileSidebar && (
+          <button 
+            onClick={onToggleMobileSidebar}
+            className="lg:hidden p-1.5 rounded-lg hover:bg-gray-100 text-gray-500 hover:text-gray-700 cursor-pointer shrink-0"
+            title="Open Mobile Navigation"
+          >
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+          </button>
+        )}
+
+        <div 
+          onClick={onOpenCompanyModal}
+          className="text-lg font-bold tracking-tight text-gray-900 flex items-center gap-2.5 group cursor-pointer"
+          title="Click to edit real company legal name, DOT #, MC #, and dispatch email"
+        >
+          <span className="w-8 h-8 rounded-lg bg-gray-100 border border-gray-200 flex items-center justify-center text-gray-800 font-bold text-xs shrink-0">
+            AF
           </span>
-          <span className="text-[10px] text-gray-500 font-mono">
-            DOT #{companyProfile?.dotNumber || 'DOT-PENDING'} · MC #{companyProfile?.mcNumber || 'MC-PENDING'}
-          </span>
+          <div className="flex flex-col text-left">
+            <span className="font-extrabold tracking-tight text-sm leading-tight text-gray-900 group-hover:text-[#007AFF] transition-colors truncate max-w-[140px] sm:max-w-none">
+              {companyProfile?.companyName || 'Your Carrier Name LLC'}
+            </span>
+            <span className="text-[10px] text-gray-500 font-mono hidden sm:inline">
+              DOT #{companyProfile?.dotNumber || 'DOT-PENDING'} · MC #{companyProfile?.mcNumber || 'MC-PENDING'}
+            </span>
+          </div>
         </div>
       </div>
 
@@ -111,6 +129,16 @@ export const Header: React.FC<HeaderProps> = ({
         </button>
 
         <button
+          onClick={() => onTabChange('explorer')}
+          className={`hover:text-gray-900 transition-colors cursor-pointer py-1 flex items-center gap-1.5 ${
+            currentTab === 'explorer' ? 'text-[#007AFF] font-semibold border-b-2 border-[#007AFF]' : 'text-gray-600'
+          }`}
+        >
+          <HardDrive className="w-3.5 h-3.5 text-gray-500" />
+          <span>Docs & Explorer</span>
+        </button>
+
+        <button
           onClick={() => onTabChange('workspace')}
           className={`hover:text-gray-900 transition-colors cursor-pointer py-1 flex items-center gap-1.5 ${
             currentTab === 'workspace' ? 'text-[#007AFF] font-semibold border-b-2 border-[#007AFF]' : 'text-gray-600'
@@ -139,6 +167,16 @@ export const Header: React.FC<HeaderProps> = ({
           <Cpu className="w-3.5 h-3.5 text-gray-500" />
           <span>Foundry AI Studio</span>
         </button>
+
+        <button
+          onClick={() => onTabChange('api-mcp')}
+          className={`hover:text-gray-900 transition-colors cursor-pointer py-1 flex items-center gap-1.5 ${
+            currentTab === 'api-mcp' ? 'text-[#007AFF] font-semibold border-b-2 border-[#007AFF]' : 'text-gray-600'
+          }`}
+        >
+          <Sparkles className="w-3.5 h-3.5 text-purple-600" />
+          <span>API Pro & MCP</span>
+        </button>
       </nav>
 
       {/* Zone 3: Actions */}
@@ -161,6 +199,15 @@ export const Header: React.FC<HeaderProps> = ({
         >
           <Laptop className="w-3.5 h-3.5 text-gray-600" />
           <span>Folder Watcher</span>
+        </button>
+
+        <button
+          onClick={() => onTabChange('api-mcp')}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-purple-50 hover:bg-purple-100 text-purple-900 border border-purple-200 text-xs font-bold transition-all cursor-pointer shadow-2xs"
+          title="Open API Pro & MCP Developer Gateway"
+        >
+          <Sparkles className="w-3.5 h-3.5 text-purple-600" />
+          <span className="hidden sm:inline">API / MCP</span>
         </button>
 
         <button

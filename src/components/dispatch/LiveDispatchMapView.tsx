@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Project, ProposedInvoice } from '../../types';
 import { 
   Truck, 
@@ -19,7 +19,11 @@ import {
   Settings,
   Zap,
   Key,
-  Database
+  Database,
+  Smartphone,
+  Layers,
+  Compass,
+  Maximize2
 } from 'lucide-react';
 import { generateProjectSummaryPDF } from '../../services/pdfGenerator';
 import { 
@@ -29,6 +33,7 @@ import {
   LiveVehicleTelemetry,
   ELDConfig
 } from '../../services/eldStreamService';
+import L from 'leaflet';
 
 interface LiveDispatchMapViewProps {
   projects: Project[];
@@ -57,6 +62,32 @@ export const LiveDispatchMapView: React.FC<LiveDispatchMapViewProps> = ({
     status: 'active'
   });
   const [saveEldSuccess, setSaveEldSuccess] = useState(false);
+
+  // REAL PHONE GPS TRACKING STATE (Live Phone Stream)
+  const [isPhoneGpsTrackingActive, setIsPhoneGpsTrackingActive] = useState<boolean>(false);
+  const [phoneCoords, setPhoneCoords] = useState<{
+    lat: number;
+    lng: number;
+    speedMph: number;
+    heading?: number;
+    accuracy: number;
+    altitude?: number;
+    address?: string;
+    timestamp: string;
+  } | null>(null);
+  const [phoneBreadcrumbs, setPhoneBreadcrumbs] = useState<Array<[number, number]>>([]);
+  const [mapTileStyle, setMapTileStyle] = useState<'voyager' | 'dark' | 'osm'>('dark');
+
+  // Leaflet Map Refs
+  const mapContainerRef = useRef<HTMLDivElement | null>(null);
+  const mapInstanceRef = useRef<L.Map | null>(null);
+  const tileLayerRef = useRef<L.TileLayer | null>(null);
+  const markersLayerRef = useRef<L.LayerGroup | null>(null);
+  const phoneMarkerRef = useRef<L.CircleMarker | null>(null);
+  const phoneAccuracyCircleRef = useRef<L.Circle | null>(null);
+  const breadcrumbPolylineRef = useRef<L.Polyline | null>(null);
+  const routePolylineRef = useRef<L.Polyline | null>(null);
+  const watchPositionIdRef = useRef<number | null>(null);
 
   // Load initial ELD config
   useEffect(() => {
@@ -96,6 +127,274 @@ export const LiveDispatchMapView: React.FC<LiveDispatchMapViewProps> = ({
       }
     : selectedProject?.telemetry;
 
+  // Initialize Leaflet Map
+  useEffect(() => {
+    if (!mapContainerRef.current) return;
+    if (mapInstanceRef.current) return; // already initialized
+
+    const initialLat = currentTelemetry?.lat || 32.7767;
+    const initialLng = currentTelemetry?.lng || -96.7970;
+
+    const map = L.map(mapContainerRef.current, {
+      center: [initialLat, initialLng],
+      zoom: 7,
+      zoomControl: true,
+      attributionControl: false
+    });
+
+    const getTileUrl = (style: 'voyager' | 'dark' | 'osm') => {
+      if (style === 'dark') {
+        return 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
+      }
+      if (style === 'voyager') {
+        return 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png';
+      }
+      return 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
+    };
+
+    const tileLayer = L.tileLayer(getTileUrl(mapTileStyle), {
+      maxZoom: 19,
+      subdomains: 'abcd'
+    }).addTo(map);
+
+    tileLayerRef.current = tileLayer;
+    markersLayerRef.current = L.layerGroup().addTo(map);
+    mapInstanceRef.current = map;
+
+    return () => {
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current.remove();
+        mapInstanceRef.current = null;
+      }
+    };
+  }, []);
+
+  // Update Tile Style when changed
+  useEffect(() => {
+    if (!mapInstanceRef.current) return;
+    if (tileLayerRef.current) {
+      mapInstanceRef.current.removeLayer(tileLayerRef.current);
+    }
+
+    const getTileUrl = (style: 'voyager' | 'dark' | 'osm') => {
+      if (style === 'dark') {
+        return 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
+      }
+      if (style === 'voyager') {
+        return 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png';
+      }
+      return 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
+    };
+
+    const newTile = L.tileLayer(getTileUrl(mapTileStyle), {
+      maxZoom: 19,
+      subdomains: 'abcd'
+    }).addTo(mapInstanceRef.current);
+
+    tileLayerRef.current = newTile;
+  }, [mapTileStyle]);
+
+  // Update Truck Markers on Map
+  useEffect(() => {
+    if (!mapInstanceRef.current || !markersLayerRef.current) return;
+    markersLayerRef.current.clearLayers();
+
+    projects.forEach((proj) => {
+      const telem = liveTelemetryMap[proj.truckId] || proj.telemetry;
+      const isSelected = proj.id === selectedLoadId;
+      const lat = telem?.lat || 32.54;
+      const lng = telem?.lng || -97.34;
+
+      const iconHtml = `
+        <div style="position: relative; display: flex; flex-direction: column; align-items: center; cursor: pointer;">
+          <div style="
+            width: ${isSelected ? '34px' : '26px'};
+            height: ${isSelected ? '34px' : '26px'};
+            border-radius: 50%;
+            background-color: ${isSelected ? '#2563eb' : '#0f172a'};
+            border: 2px solid ${isSelected ? '#ffffff' : '#38bdf8'};
+            box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #ffffff;
+            font-size: 13px;
+          ">
+            🚚
+          </div>
+          <div style="
+            margin-top: 2px;
+            padding: 2px 5px;
+            border-radius: 4px;
+            background-color: rgba(15, 23, 42, 0.9);
+            border: 1px solid #334155;
+            color: #ffffff;
+            font-size: 9px;
+            font-family: monospace;
+            font-weight: bold;
+            white-space: nowrap;
+          ">
+            ${proj.truckId} · ${telem?.speedMph || 0} MPH
+          </div>
+        </div>
+      `;
+
+      const customIcon = L.divIcon({
+        html: iconHtml,
+        className: 'custom-truck-pin',
+        iconSize: [40, 48],
+        iconAnchor: [20, 24]
+      });
+
+      const marker = L.marker([lat, lng], { icon: customIcon }).addTo(markersLayerRef.current!);
+      marker.bindPopup(`
+        <div style="font-family: sans-serif; font-size: 12px; color: #0f172a; line-height: 1.4;">
+          <strong>Load #${proj.loadNumber}</strong><br/>
+          Driver: ${proj.driverName}<br/>
+          Truck: ${proj.truckId} | Trailer: ${proj.trailerId}<br/>
+          Corridor: ${proj.originCity} ➔ ${proj.destCity}<br/>
+          Speed: <b>${telem?.speedMph} MPH</b> | Temp: <b>${telem?.reeferTempF}°F</b>
+        </div>
+      `);
+
+      marker.on('click', () => {
+        setSelectedLoadId(proj.id);
+      });
+    });
+
+    if (selectedProject) {
+      const telem = liveTelemetryMap[selectedProject.truckId] || selectedProject.telemetry;
+      const truckPos: [number, number] = [telem.lat, telem.lng];
+
+      let origCoords: [number, number] = [truckPos[0] - 0.8, truckPos[1] - 1.2];
+      let destCoords: [number, number] = [truckPos[0] + 1.2, truckPos[1] + 1.8];
+
+      if (routePolylineRef.current) {
+        mapInstanceRef.current.removeLayer(routePolylineRef.current);
+      }
+
+      const routeLine = L.polyline([origCoords, truckPos, destCoords], {
+        color: '#3b82f6',
+        weight: 4,
+        opacity: 0.8,
+        dashArray: '6, 8'
+      }).addTo(mapInstanceRef.current);
+
+      routePolylineRef.current = routeLine;
+      mapInstanceRef.current.setView(truckPos, mapInstanceRef.current.getZoom(), { animate: true });
+    }
+  }, [projects, selectedLoadId, liveTelemetryMap]);
+
+  // LIVE PHONE GPS TRACKING
+  const togglePhoneGpsTracking = () => {
+    if (isPhoneGpsTrackingActive) {
+      if (watchPositionIdRef.current !== null) {
+        navigator.geolocation.clearWatch(watchPositionIdRef.current);
+        watchPositionIdRef.current = null;
+      }
+      if (phoneMarkerRef.current && mapInstanceRef.current) {
+        mapInstanceRef.current.removeLayer(phoneMarkerRef.current);
+        phoneMarkerRef.current = null;
+      }
+      if (phoneAccuracyCircleRef.current && mapInstanceRef.current) {
+        mapInstanceRef.current.removeLayer(phoneAccuracyCircleRef.current);
+        phoneAccuracyCircleRef.current = null;
+      }
+      setIsPhoneGpsTrackingActive(false);
+    } else {
+      if (!navigator.geolocation) return;
+
+      setIsPhoneGpsTrackingActive(true);
+
+      const watchId = navigator.geolocation.watchPosition(
+        async (position) => {
+          const lat = position.coords.latitude;
+          const lng = position.coords.longitude;
+          const speed = position.coords.speed ? Math.round(position.coords.speed * 2.23694) : 0;
+          const accuracy = Math.round(position.coords.accuracy);
+          const heading = position.coords.heading ?? undefined;
+          const altitude = position.coords.altitude ? Math.round(position.coords.altitude * 3.28084) : undefined;
+          const time = new Date().toLocaleTimeString();
+
+          let address = undefined;
+          try {
+            const geoRes = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`);
+            if (geoRes.ok) {
+              const geoData = await geoRes.json();
+              address = geoData.display_name?.split(',').slice(0, 3).join(',');
+            }
+          } catch (e) {}
+
+          setPhoneCoords({
+            lat,
+            lng,
+            speedMph: speed,
+            heading,
+            accuracy,
+            altitude,
+            address,
+            timestamp: time
+          });
+
+          setPhoneBreadcrumbs(prev => [...prev.slice(-40), [lat, lng]]);
+
+          if (mapInstanceRef.current) {
+            if (!phoneMarkerRef.current) {
+              phoneMarkerRef.current = L.circleMarker([lat, lng], {
+                radius: 10,
+                color: '#38bdf8',
+                fillColor: '#0284c7',
+                fillOpacity: 1,
+                weight: 3
+              }).addTo(mapInstanceRef.current);
+
+              phoneMarkerRef.current.bindPopup(`
+                <div style="font-family: sans-serif; font-size: 11px;">
+                  <b>📱 Driver Phone GPS Stream</b><br/>
+                  Speed: ${speed} MPH<br/>
+                  Accuracy: ±${accuracy}m
+                </div>
+              `);
+            } else {
+              phoneMarkerRef.current.setLatLng([lat, lng]);
+            }
+
+            if (!phoneAccuracyCircleRef.current) {
+              phoneAccuracyCircleRef.current = L.circle([lat, lng], {
+                radius: accuracy,
+                color: '#38bdf8',
+                fillColor: '#38bdf8',
+                fillOpacity: 0.15,
+                weight: 1
+              }).addTo(mapInstanceRef.current);
+            } else {
+              phoneAccuracyCircleRef.current.setLatLng([lat, lng]);
+              phoneAccuracyCircleRef.current.setRadius(accuracy);
+            }
+
+            if (breadcrumbPolylineRef.current) {
+              breadcrumbPolylineRef.current.setLatLngs([...phoneBreadcrumbs, [lat, lng]]);
+            } else {
+              breadcrumbPolylineRef.current = L.polyline([[lat, lng]], {
+                color: '#06b6d4',
+                weight: 4,
+                opacity: 0.9
+              }).addTo(mapInstanceRef.current);
+            }
+
+            mapInstanceRef.current.setView([lat, lng], 14, { animate: true });
+          }
+        },
+        (error) => {
+          console.warn('Geolocation error:', error);
+        },
+        { enableHighAccuracy: true, maximumAge: 1000, timeout: 15000 }
+      );
+
+      watchPositionIdRef.current = watchId;
+    }
+  };
+
   const handleSendCheckCall = () => {
     if (!selectedProject) return;
     onTriggerCheckCall(selectedProject);
@@ -125,57 +424,84 @@ export const LiveDispatchMapView: React.FC<LiveDispatchMapViewProps> = ({
   );
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-slate-950 overflow-hidden select-none">
+    <div className="flex-1 flex flex-col h-full bg-slate-950 overflow-y-auto lg:overflow-hidden select-none font-sans">
       {/* Top Bar */}
-      <div className="px-6 py-4 border-b border-slate-800 bg-slate-900/60 flex flex-wrap items-center justify-between gap-4 shrink-0">
+      <div className="px-3 sm:px-6 py-2.5 sm:py-3.5 border-b border-slate-800 bg-slate-900/90 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shrink-0">
         <div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <span className="text-xs px-2.5 py-0.5 rounded bg-blue-600/20 text-blue-400 font-mono font-bold border border-blue-500/30 flex items-center gap-1.5">
               <Radio className="w-3.5 h-3.5 text-blue-400 animate-pulse" />
-              <span>LIVE GPS TELEMATICS</span>
+              <span>LIVE TELEMATICS</span>
             </span>
-            <h1 className="text-base font-bold text-white tracking-tight">
-              Fleet Telemetry, Geofencing & Automated Detention Monitor
+            <h1 className="text-sm sm:text-base font-bold text-white tracking-tight">
+              Real Fleet Map & Driver GPS Tracking
             </h1>
           </div>
-          <p className="text-xs text-slate-400 mt-1">
-            Real-time Samsara & Motive ELD data stream. Monitored by Foundry AI Detention Sentinel with automated check-calls and public tracking links.
+          <p className="text-[11px] sm:text-xs text-slate-400 mt-0.5">
+            Interactive Leaflet map with OpenStreetMap, Samsara/Motive telemetry stream, and device GPS tracking.
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        {/* Action Toggles */}
+        <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto">
+          {/* Tile Selector */}
+          <div className="flex items-center bg-slate-800 p-0.5 rounded-lg border border-slate-700 text-xs">
+            <button
+              onClick={() => setMapTileStyle('dark')}
+              className={`px-2 py-1 rounded cursor-pointer font-bold ${mapTileStyle === 'dark' ? 'bg-slate-700 text-white' : 'text-slate-400'}`}
+            >
+              Dark
+            </button>
+            <button
+              onClick={() => setMapTileStyle('voyager')}
+              className={`px-2 py-1 rounded cursor-pointer font-bold ${mapTileStyle === 'voyager' ? 'bg-slate-700 text-white' : 'text-slate-400'}`}
+            >
+              Street
+            </button>
+            <button
+              onClick={() => setMapTileStyle('osm')}
+              className={`px-2 py-1 rounded cursor-pointer font-bold ${mapTileStyle === 'osm' ? 'bg-slate-700 text-white' : 'text-slate-400'}`}
+            >
+              OSM
+            </button>
+          </div>
+
+          {/* REAL PHONE GPS TOGGLE */}
+          <button
+            onClick={togglePhoneGpsTracking}
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-md transition-all ${
+              isPhoneGpsTrackingActive
+                ? 'bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-400 animate-pulse'
+                : 'bg-blue-600 hover:bg-blue-700 text-white border border-blue-500'
+            }`}
+          >
+            <Smartphone className="w-4 h-4" />
+            <span>{isPhoneGpsTrackingActive ? 'GPS ON' : 'Track Phone'}</span>
+          </button>
+
+          {/* ELD Settings Button */}
           <button
             onClick={() => setShowEldModal(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600/20 hover:bg-blue-600/30 text-blue-300 border border-blue-500/30 rounded-lg text-xs font-semibold cursor-pointer transition-colors shadow-sm"
-            title="Configure Samsara, Geotab, or Motive ELD API Integration"
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 rounded-lg text-xs font-medium cursor-pointer"
           >
-            <Settings className="w-3.5 h-3.5 text-blue-400" />
-            <span>ELD Provider Settings</span>
-          </button>
-
-          <button
-            onClick={handleDirectDownloadPDF}
-            className="flex items-center gap-1.5 px-3.5 py-1.5 bg-slate-800 hover:bg-slate-750 text-slate-200 border border-slate-700 rounded-lg text-xs font-semibold cursor-pointer transition-colors shadow-sm"
-          >
-            <FileDown className="w-3.5 h-3.5 text-orange-400" />
-            <span>Download Load Packet PDF</span>
-          </button>
-
-          <button
-            onClick={() => onOpenPDFSummaryModal(selectedProject)}
-            className="flex items-center gap-1.5 px-4 py-1.5 bg-orange-600 hover:bg-orange-500 text-white rounded-lg text-xs font-bold shadow-sm cursor-pointer transition-colors"
-          >
-            <span>Preview & Generate Summary</span>
+            <Settings className="w-3.5 h-3.5 text-slate-400" />
+            <span>ELD Config</span>
           </button>
         </div>
       </div>
 
-      {/* Main Map & Telemetry Split View */}
-      <div className="flex-1 flex overflow-hidden">
-        {/* Left Column: Active Loads List */}
-        <div className="w-4/12 border-r border-slate-800 p-5 overflow-y-auto space-y-4">
+      {/* Main Workspace Layout */}
+      <div className="flex-1 flex flex-col lg:flex-row overflow-y-auto lg:overflow-hidden">
+        {/* Left Column: Monitored In-Transit Loads Sidebar */}
+        <div className="w-full lg:w-4/12 border-b lg:border-b-0 lg:border-r border-slate-800 p-3 sm:p-4 overflow-y-auto space-y-3 bg-slate-950 shrink-0 max-h-[350px] lg:max-h-full">
+          <div className="flex items-center justify-between text-xs text-slate-400 pb-1">
+            <span className="font-semibold uppercase tracking-wider text-[10px]">Active Monitored Loads ({filteredProjects.length})</span>
+            <span className="font-mono text-emerald-400 text-[10px]">Stream Active</span>
+          </div>
+
+          {/* Search Field */}
           <div className="relative">
-            <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <Search className="w-3.5 h-3.5 text-slate-500 absolute left-2.5 top-1/2 -translate-y-1/2" />
             <input
               type="text"
               placeholder="Search load, driver, city..."
@@ -185,16 +511,38 @@ export const LiveDispatchMapView: React.FC<LiveDispatchMapViewProps> = ({
             />
           </div>
 
-          <div className="space-y-2.5">
+          {/* Phone GPS Active Info Banner if enabled */}
+          {isPhoneGpsTrackingActive && phoneCoords && (
+            <div className="p-3 rounded-xl bg-blue-950/80 border border-blue-700 text-xs text-left space-y-1">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-bold text-blue-300 uppercase flex items-center gap-1">
+                  <Smartphone className="w-3.5 h-3.5 text-blue-400" />
+                  <span>Device GPS Telemetry</span>
+                </span>
+                <span className="font-mono text-[10px] text-emerald-400 font-bold">±{phoneCoords.accuracy}m</span>
+              </div>
+              <div className="font-mono font-bold text-white text-xs">
+                {phoneCoords.lat.toFixed(5)}° N, {phoneCoords.lng.toFixed(5)}° W
+              </div>
+              {phoneCoords.address && (
+                <div className="text-[11px] text-slate-300 truncate">
+                  📍 {phoneCoords.address}
+                </div>
+              )}
+            </div>
+          )}
+
+          <div className="space-y-2">
             {filteredProjects.map((p) => {
               const isSelected = p.id === selectedLoadId;
               const hasDetention = p.telemetry.dwellMinutes > 120;
+              const telem = liveTelemetryMap[p.truckId] || p.telemetry;
 
               return (
                 <div
                   key={p.id}
                   onClick={() => setSelectedLoadId(p.id)}
-                  className={`p-3.5 rounded-xl border transition-all cursor-pointer text-left ${
+                  className={`p-3 rounded-xl border transition-all cursor-pointer text-left ${
                     isSelected
                       ? 'bg-slate-900 border-blue-500 shadow-md ring-1 ring-blue-500/30'
                       : 'bg-slate-900/60 border-slate-800/80 hover:border-slate-700'
@@ -202,10 +550,10 @@ export const LiveDispatchMapView: React.FC<LiveDispatchMapViewProps> = ({
                 >
                   <div className="flex items-start justify-between gap-2 mb-1">
                     <span className="text-xs font-bold text-white font-mono">{p.loadNumber}</span>
-                    <span className={`text-[10px] font-semibold px-2 py-0.2 rounded border font-mono ${
+                    <span className={`text-[10px] font-semibold px-1.5 py-0.2 rounded border font-mono ${
                       hasDetention ? 'text-amber-400 bg-amber-950/60 border-amber-800' : 'text-emerald-400 bg-emerald-950/60 border-emerald-800'
                     }`}>
-                      {p.telemetry.geofenceState.toUpperCase()}
+                      {telem?.geofenceState.toUpperCase()}
                     </span>
                   </div>
 
@@ -213,18 +561,18 @@ export const LiveDispatchMapView: React.FC<LiveDispatchMapViewProps> = ({
                     {p.customerName}
                   </div>
 
-                  <div className="text-[11px] text-slate-400 flex items-center gap-1 mb-2">
+                  <div className="text-[11px] text-slate-400 flex items-center gap-1 mb-1.5">
                     <MapPin className="w-3 h-3 text-slate-500 shrink-0" />
-                    <span>{p.originCity} → {p.destCity}</span>
+                    <span className="truncate">{p.originCity} → {p.destCity}</span>
                   </div>
 
-                  <div className="flex items-center justify-between text-[11px] text-slate-400 pt-2 border-t border-slate-800">
-                    <div className="flex items-center gap-1.5">
-                      <Truck className="w-3 h-3 text-slate-500" />
-                      <span>{p.driverName.split(' ')[0]} ({p.truckId})</span>
+                  <div className="flex items-center justify-between text-[11px] text-slate-400 pt-1.5 border-t border-slate-800">
+                    <div className="flex items-center gap-1 truncate">
+                      <Truck className="w-3 h-3 text-slate-500 shrink-0" />
+                      <span className="truncate">{p.driverName.split(' ')[0]} ({p.truckId})</span>
                     </div>
-                    <span className="font-mono text-emerald-400 font-bold tabular-nums">
-                      {p.telemetry.speedMph} MPH
+                    <span className="font-mono text-emerald-400 font-bold tabular-nums shrink-0">
+                      {telem?.speedMph} MPH
                     </span>
                   </div>
                 </div>
@@ -233,162 +581,113 @@ export const LiveDispatchMapView: React.FC<LiveDispatchMapViewProps> = ({
           </div>
         </div>
 
-        {/* Right Column: Live Map Simulation Canvas & Telemetry Gauges */}
+        {/* Right Column: Real Interactive Leaflet Map & Telemetry HUD */}
         {selectedProject && (
-          <div className="w-8/12 p-6 flex flex-col justify-between overflow-y-auto bg-slate-900/30 space-y-4">
-            {/* Simulated Interactive Vector Map Canvas */}
-            <div className="w-full h-80 rounded-2xl bg-slate-950 border border-slate-800 relative overflow-hidden flex items-center justify-center shadow-inner">
-              {/* Grid Lines */}
-              <div className="absolute inset-0 bg-[linear-gradient(to_right,#1e293b_1px,transparent_1px),linear-gradient(to_bottom,#1e293b_1px,transparent_1px)] bg-[size:32px_32px] opacity-30"></div>
+          <div className="w-full lg:w-8/12 p-3 sm:p-5 flex flex-col justify-between overflow-y-auto bg-slate-900/40 space-y-4">
+            {/* Real Leaflet Vector Map Canvas */}
+            <div className="w-full h-[320px] sm:h-[420px] lg:h-96 rounded-2xl bg-slate-950 border border-slate-800 relative overflow-hidden shadow-2xl flex flex-col shrink-0">
+              <div 
+                ref={mapContainerRef} 
+                className="w-full h-full z-0 min-h-[300px]" 
+              />
 
-              {/* Highway Route Arc */}
-              <svg className="absolute inset-0 w-full h-full pointer-events-none">
-                <path
-                  d="M 120 220 Q 340 80 580 180"
-                  fill="none"
-                  stroke="#3b82f6"
-                  strokeWidth="3"
-                  strokeDasharray="6,6"
-                  className="animate-pulse"
-                />
-                <circle cx="120" cy="220" r="6" fill="#f97316" />
-                <circle cx="580" cy="180" r="6" fill="#10b981" />
-              </svg>
-
-              {/* Truck Active Position Marker */}
-              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center">
-                <div className="w-10 h-10 rounded-full bg-blue-600 border-2 border-white shadow-xl flex items-center justify-center text-white animate-bounce">
-                  <Truck className="w-5 h-5" />
-                </div>
-                <div className="mt-1 px-2.5 py-0.5 rounded-full bg-slate-900/90 border border-slate-700 text-[10px] font-mono font-bold text-white shadow-md">
-                  {selectedProject.truckId} · {currentTelemetry?.speedMph} MPH
-                </div>
-              </div>
-
-              {/* Overlay Top Badges */}
-              <div className="absolute top-3 left-3 flex gap-2">
-                <div className="px-3 py-1 bg-slate-900/90 border border-slate-700 rounded-lg text-xs text-white font-mono flex items-center gap-2">
+              {/* Map Overlay Badges */}
+              <div className="absolute top-3 left-3 z-10 flex gap-2">
+                <div className="px-2.5 py-1 bg-slate-900/90 backdrop-blur-xs border border-slate-700 rounded-xl text-[11px] text-white font-mono flex items-center gap-1.5 shadow-lg">
                   <Radio className="w-3 h-3 text-emerald-400 animate-pulse" />
-                  <span>GPS Lat: {currentTelemetry?.lat.toFixed(4)}° N, Lng: {currentTelemetry?.lng.toFixed(4)}° W</span>
+                  <span>
+                    {currentTelemetry?.lat.toFixed(4)}° N, {currentTelemetry?.lng.toFixed(4)}° W
+                  </span>
                 </div>
               </div>
 
-              <div className="absolute bottom-3 right-3 flex gap-2">
+              <div className="absolute bottom-3 right-3 z-10 flex gap-2">
                 <a
                   href={selectedProject.trackingUrl || '#'}
                   target="_blank"
                   rel="noreferrer"
-                  className="px-3 py-1 bg-slate-900/90 hover:bg-slate-800 border border-slate-700 rounded-lg text-xs text-blue-400 font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
+                  className="px-2.5 py-1 bg-slate-900/90 backdrop-blur-xs hover:bg-slate-800 border border-slate-700 rounded-xl text-xs text-blue-400 font-bold flex items-center gap-1 transition-colors cursor-pointer shadow-lg"
                 >
-                  <span>Customer Live Link</span>
+                  <span>Live Tracking Link</span>
                   <ExternalLink className="w-3 h-3" />
                 </a>
               </div>
             </div>
 
             {/* IoT Telemetry Gauges Grid */}
-            <div className="grid grid-cols-4 gap-3">
-              <div className="p-3 bg-slate-900 border border-slate-800 rounded-xl flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-blue-950 border border-blue-800 flex items-center justify-center text-blue-400 shrink-0">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
+              <div className="p-2.5 sm:p-3 bg-slate-900 border border-slate-800 rounded-xl flex items-center gap-2.5">
+                <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-blue-950 border border-blue-800 flex items-center justify-center text-blue-400 shrink-0">
                   <Thermometer className="w-4 h-4" />
                 </div>
                 <div>
-                  <span className="text-[10px] text-slate-400 uppercase block">Reefer Setpoint</span>
-                  <span className="text-sm font-mono font-bold text-white tabular-nums">
+                  <span className="text-[10px] text-slate-400 uppercase block">Reefer Temp</span>
+                  <span className="text-xs sm:text-sm font-mono font-bold text-white tabular-nums">
                     {currentTelemetry?.reeferTempF}°F
                   </span>
                 </div>
               </div>
 
-              <div className="p-3 bg-slate-900 border border-slate-800 rounded-xl flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-emerald-950 border border-emerald-800 flex items-center justify-center text-emerald-400 shrink-0">
+              <div className="p-2.5 sm:p-3 bg-slate-900 border border-slate-800 rounded-xl flex items-center gap-2.5">
+                <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-emerald-950 border border-emerald-800 flex items-center justify-center text-emerald-400 shrink-0">
                   <Fuel className="w-4 h-4" />
                 </div>
                 <div>
                   <span className="text-[10px] text-slate-400 uppercase block">Fuel Level</span>
-                  <span className="text-sm font-mono font-bold text-white tabular-nums">
-                    {currentTelemetry?.fuelLevelPct}% Full
+                  <span className="text-xs sm:text-sm font-mono font-bold text-white tabular-nums">
+                    {currentTelemetry?.fuelLevelPct}%
                   </span>
                 </div>
               </div>
 
-              <div className="p-3 bg-slate-900 border border-slate-800 rounded-xl flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-amber-950 border border-amber-800 flex items-center justify-center text-amber-400 shrink-0">
+              <div className="p-2.5 sm:p-3 bg-slate-900 border border-slate-800 rounded-xl flex items-center gap-2.5">
+                <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-amber-950 border border-amber-800 flex items-center justify-center text-amber-400 shrink-0">
                   <Clock className="w-4 h-4" />
                 </div>
                 <div>
-                  <span className="text-[10px] text-slate-400 uppercase block">Facility Dwell</span>
-                  <span className="text-sm font-mono font-bold text-amber-400 tabular-nums">
-                    {currentTelemetry?.dwellMinutes} Mins
+                  <span className="text-[10px] text-slate-400 uppercase block">Dwell Time</span>
+                  <span className="text-xs sm:text-sm font-mono font-bold text-white tabular-nums">
+                    {currentTelemetry?.dwellMinutes}m
                   </span>
                 </div>
               </div>
 
-              <div className="p-3 bg-slate-900 border border-slate-800 rounded-xl flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-purple-950 border border-purple-800 flex items-center justify-center text-purple-400 shrink-0">
+              <div className="p-2.5 sm:p-3 bg-slate-900 border border-slate-800 rounded-xl flex items-center gap-2.5">
+                <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-purple-950 border border-purple-800 flex items-center justify-center text-purple-400 shrink-0">
                   <Navigation className="w-4 h-4" />
                 </div>
                 <div>
-                  <span className="text-[10px] text-slate-400 uppercase block">Current Geofence</span>
-                  <span className="text-xs font-semibold text-slate-200 truncate block max-w-[110px]">
+                  <span className="text-[10px] text-slate-400 uppercase block">Geofence</span>
+                  <span className="text-xs sm:text-sm font-mono font-bold text-emerald-400 uppercase truncate block">
                     {currentTelemetry?.geofenceState}
                   </span>
                 </div>
               </div>
             </div>
 
-            {/* Detention Sentinel Over-Threshold Card */}
-            {selectedProject.telemetry.dwellMinutes > 120 && (
-              <div className="p-3.5 bg-amber-950/40 border border-amber-700/60 rounded-xl flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <ShieldAlert className="w-5 h-5 text-amber-400 shrink-0" />
-                  <div>
-                    <span className="text-xs font-bold text-white block">
-                      Foundry Detention Alert: 2-Hour Threshold Exceeded
-                    </span>
-                    <span className="text-[11px] text-amber-200">
-                      Truck has dwelt {selectedProject.telemetry.dwellMinutes} mins at facility. Detention calculated: $112.50 (1.5 hrs @ $75/hr).
-                    </span>
-                  </div>
-                </div>
-
-                <button
-                  onClick={handleSendCheckCall}
-                  className="px-3.5 py-1.5 bg-amber-600 hover:bg-amber-500 text-white rounded-lg text-xs font-bold shadow-sm cursor-pointer transition-colors whitespace-nowrap"
-                >
-                  File Detention Claim
-                </button>
+            {/* Action Bar */}
+            <div className="p-3 sm:p-4 bg-slate-900 border border-slate-800 rounded-2xl flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 text-left">
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-slate-300 font-bold">Load #{selectedProject.loadNumber}</span>
+                <span className="text-xs text-slate-500">·</span>
+                <span className="text-xs text-slate-400">{selectedProject.driverName} ({selectedProject.truckId})</span>
               </div>
-            )}
 
-            {/* Quick Actions Bar */}
-            <div className="flex items-center justify-between pt-2 border-t border-slate-800">
-              {checkCallSuccess ? (
-                <div className="text-xs text-emerald-400 font-semibold flex items-center gap-1.5">
-                  <CheckCircle2 className="w-4 h-4" />
-                  <span>Automated check-call dispatched to broker AP desk!</span>
-                </div>
-              ) : (
-                <span className="text-xs text-slate-400">
-                  Driver: <strong className="text-white">{selectedProject.driverName}</strong> · Phone: <strong className="text-white">{selectedProject.driverPhone}</strong>
-                </span>
-              )}
-
-              <div className="flex gap-2">
+              <div className="flex items-center gap-2">
                 <button
                   onClick={handleSendCheckCall}
-                  className="px-4 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-sm"
+                  className="flex-1 sm:flex-none px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer shadow-xs transition-colors"
                 >
-                  <Send className="w-3 h-3" />
-                  <span>Trigger Check-Call Email</span>
+                  <Send className="w-3.5 h-3.5" />
+                  <span>{checkCallSuccess ? 'Transmitted!' : 'Request Check-Call'}</span>
                 </button>
 
                 <button
-                  onClick={() => onOpenPDFSummaryModal(selectedProject)}
-                  className="px-4 py-1.5 bg-orange-600 hover:bg-orange-500 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-sm"
+                  onClick={handleDirectDownloadPDF}
+                  className="flex-1 sm:flex-none px-3.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer border border-slate-700 transition-colors"
                 >
-                  <FileDown className="w-3 h-3" />
-                  <span>Generate PDF Summary</span>
+                  <FileDown className="w-3.5 h-3.5" />
+                  <span>Download Trip PDF</span>
                 </button>
               </div>
             </div>
@@ -396,116 +695,55 @@ export const LiveDispatchMapView: React.FC<LiveDispatchMapViewProps> = ({
         )}
       </div>
 
-      {/* Commercial ELD Provider Settings Modal */}
+      {/* ELD STREAM CONFIGURATION MODAL */}
       {showEldModal && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-lg p-6 space-y-4 shadow-2xl">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
-              <div className="flex items-center gap-2">
-                <Settings className="w-5 h-5 text-blue-400" />
-                <h3 className="text-base font-bold text-white">Commercial ELD Integration Settings</h3>
-              </div>
-              <button
-                onClick={() => setShowEldModal(false)}
-                className="text-slate-400 hover:text-white text-xs cursor-pointer"
-              >
-                ✕
-              </button>
-            </div>
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full p-6 text-left space-y-4">
+            <h3 className="text-sm font-extrabold text-white">Live Telematics ELD Configuration</h3>
+            <p className="text-xs text-slate-400">
+              Configure real-time SSE stream from Samsara, Motive (KeepTruckin), or Geotab.
+            </p>
 
-            <form onSubmit={handleSaveEldSettings} className="space-y-4 text-xs">
+            <form onSubmit={handleSaveEldSettings} className="space-y-3 text-xs">
               <div>
-                <label className="text-slate-300 font-semibold block mb-1">Select Active Commercial ELD Provider</label>
+                <label className="text-slate-400 block mb-1">Provider</label>
                 <select
                   value={eldConfig.provider}
                   onChange={(e) => setEldConfig({ ...eldConfig, provider: e.target.value as any })}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-white cursor-pointer focus:outline-none focus:border-blue-500 font-medium"
+                  className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-white"
                 >
-                  <option value="samsara">Samsara API v2 (Production REST)</option>
-                  <option value="geotab">Geotab Cloud API (MyGeotab SDK)</option>
-                  <option value="motive">Motive ELD (KeepTruckin API)</option>
-                  <option value="python_physics">High-Frequency Python Vector Kinematics Stream</option>
+                  <option value="samsara">Samsara API Stream</option>
+                  <option value="motive">Motive (KeepTruckin)</option>
+                  <option value="geotab">Geotab Fleet</option>
                 </select>
               </div>
-
-              {eldConfig.provider === 'samsara' && (
-                <div>
-                  <label className="text-slate-300 font-semibold block mb-1 flex items-center justify-between">
-                    <span>Samsara API Token *</span>
-                    <span className="text-[10px] text-blue-400 font-mono">samsara_api_...</span>
-                  </label>
-                  <input
-                    type="password"
-                    placeholder="Enter Samsara API Token"
-                    value={eldConfig.apiKey}
-                    onChange={(e) => setEldConfig({ ...eldConfig, apiKey: e.target.value })}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-white font-mono focus:outline-none focus:border-blue-500"
-                  />
-                  <p className="text-[11px] text-slate-400 mt-1">Fetches live truck GPS, reefer temperature sensors, and ELD HOS logs directly from Samsara Cloud.</p>
-                </div>
-              )}
-
-              {eldConfig.provider === 'geotab' && (
-                <div className="space-y-3">
-                  <div>
-                    <label className="text-slate-300 font-semibold block mb-1">Geotab Database Name</label>
-                    <input
-                      type="text"
-                      placeholder="e.g. mycompany_fleet"
-                      value={eldConfig.geotabDatabase || ''}
-                      onChange={(e) => setEldConfig({ ...eldConfig, geotabDatabase: e.target.value })}
-                      className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-white font-mono focus:outline-none"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-slate-300 font-semibold block mb-1">Geotab User Email / Service Account</label>
-                    <input
-                      type="text"
-                      placeholder="api.user@company.com"
-                      value={eldConfig.geotabUser || ''}
-                      onChange={(e) => setEldConfig({ ...eldConfig, geotabUser: e.target.value })}
-                      className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-white font-mono focus:outline-none"
-                    />
-                  </div>
-                </div>
-              )}
 
               <div>
-                <label className="text-slate-300 font-semibold block mb-1">Live Stream Polling Frequency</label>
-                <select
-                  value={eldConfig.refreshIntervalSec}
-                  onChange={(e) => setEldConfig({ ...eldConfig, refreshIntervalSec: Number(e.target.value) })}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-white cursor-pointer focus:outline-none"
-                >
-                  <option value={1}>High-Frequency (1 Second)</option>
-                  <option value={2}>Standard Telemetry Stream (2 Seconds)</option>
-                  <option value={5}>Balanced Polling (5 Seconds)</option>
-                  <option value={10}>Eco Polling (10 Seconds)</option>
-                </select>
+                <label className="text-slate-400 block mb-1">API Key / Auth Token</label>
+                <input
+                  type="password"
+                  placeholder="samsara_api_live_..."
+                  value={eldConfig.apiKey}
+                  onChange={(e) => setEldConfig({ ...eldConfig, apiKey: e.target.value })}
+                  className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-white"
+                />
               </div>
 
-              {saveEldSuccess ? (
-                <div className="p-3 bg-emerald-950/60 border border-emerald-800 text-emerald-300 rounded-xl text-xs flex items-center gap-2 font-semibold">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                  <span>Integration settings saved! Live SSE telematics stream re-connected.</span>
-                </div>
-              ) : (
-                <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-800">
-                  <button
-                    type="button"
-                    onClick={() => setShowEldModal(false)}
-                    className="px-3.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold cursor-pointer"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    className="px-5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold shadow-md cursor-pointer"
-                  >
-                    Save ELD Integration
-                  </button>
-                </div>
-              )}
+              <div className="flex justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowEldModal(false)}
+                  className="px-3 py-1.5 bg-slate-800 text-slate-300 rounded-lg"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg"
+                >
+                  {saveEldSuccess ? 'Saved!' : 'Save Configuration'}
+                </button>
+              </div>
             </form>
           </div>
         </div>

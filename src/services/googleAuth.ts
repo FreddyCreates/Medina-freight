@@ -78,14 +78,18 @@ export const googleSignIn = async (): Promise<{ user: User; accessToken: string 
     
     cachedAccessToken = token;
     if (typeof window !== 'undefined') {
-      sessionStorage.setItem('alvys_google_token', token);
-      localStorage.setItem('alvys_google_token', token);
+      try {
+        sessionStorage.setItem('alvys_google_token', token);
+      } catch {}
+      try {
+        localStorage.setItem('alvys_google_token', token);
+      } catch {}
     }
 
     return { user: result.user, accessToken: token };
   } catch (error: any) {
-    console.error('Sign in error:', error);
-    throw error;
+    console.warn('Google sign-in was not completed:', error?.message || error);
+    return null;
   } finally {
     isSigningIn = false;
   }

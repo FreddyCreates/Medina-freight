@@ -64,11 +64,39 @@ import { CompanyProfileModal } from './components/company/CompanyProfileModal';
 import { FleetDriversView } from './components/fleet/FleetDriversView';
 import { FreightEstimatesHub } from './components/estimates/FreightEstimatesHub';
 import { GeminiOmniAdminHub } from './components/agent/GeminiOmniAdminHub';
+import { DocumentDatabaseExplorer } from './components/explorer/DocumentDatabaseExplorer';
+import { ApiMcpDeveloperPortal } from './components/api/ApiMcpDeveloperPortal';
+import { FreightAnalyticsDashboard } from './components/dashboard/FreightAnalyticsDashboard';
+import { safeLocalStorageSet } from './utils/storage';
+import { 
+  subscribeToCollection, 
+  saveDocumentToFirestore, 
+  deleteDocumentFromFirestore, 
+  saveSingletonToFirestore, 
+  loadSingletonFromFirestore 
+} from './services/firebaseService';
+
+import { 
+  Menu, 
+  BarChart3, 
+  Bot, 
+  Calculator, 
+  FolderKanban, 
+  Layers, 
+  Building2 
+} from 'lucide-react';
 
 export default function App() {
   // Master Application Navigation State
   const [currentTab, setCurrentTab] = useState<string>('gemini-admin');
   const [selectedProjectId, setSelectedProjectId] = useState<string>('prj-1');
+  const [isSidebarMobileOpen, setIsSidebarMobileOpen] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+
+  const handleTabChange = (tab: string) => {
+    setCurrentTab(tab);
+    setIsSidebarMobileOpen(false);
+  };
 
   // Real Company Profile & Authority State
   const [companyProfile, setCompanyProfile] = useState<CompanyProfile>(() => {
@@ -77,58 +105,107 @@ export default function App() {
   });
   const [isCompanyModalOpen, setIsCompanyModalOpen] = useState(false);
 
-  // Real Commercial Fleet Drivers State (10-Truck Family Fleet)
+  // 4-Driver Medina Family Fleet & Memory Vault State
   const [drivers, setDrivers] = useState<FleetDriver[]>(() => {
-    const saved = localStorage.getItem('alvys_fleet_drivers_v2');
-    return saved ? JSON.parse(saved) : INITIAL_FLEET_DRIVERS;
+    const saved = localStorage.getItem('alvys_medina_fleet_drivers_v4');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length === 4 && parsed.some((d: any) => d.name?.includes('Medina'))) {
+          return parsed;
+        }
+      } catch {}
+    }
+    return INITIAL_FLEET_DRIVERS;
   });
 
   // Real Freight Estimates & Lane Quoting State
   const [estimates, setEstimates] = useState<FreightEstimate[]>(() => {
     const saved = localStorage.getItem('alvys_freight_estimates');
-    return saved ? JSON.parse(saved) : INITIAL_FREIGHT_ESTIMATES;
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      } catch {}
+    }
+    return INITIAL_FREIGHT_ESTIMATES;
   });
 
-  // Real Business State Persistence
+  // Real Business State Persistence & Firestore Sync
   useEffect(() => {
-    localStorage.setItem('alvys_company_profile', JSON.stringify(companyProfile));
+    safeLocalStorageSet('alvys_company_profile', companyProfile);
+    saveSingletonToFirestore('company_profile', companyProfile);
   }, [companyProfile]);
 
   useEffect(() => {
-    localStorage.setItem('alvys_fleet_drivers_v2', JSON.stringify(drivers));
+    safeLocalStorageSet('alvys_medina_fleet_drivers_v4', drivers);
   }, [drivers]);
 
   useEffect(() => {
-    localStorage.setItem('alvys_freight_estimates', JSON.stringify(estimates));
+    safeLocalStorageSet('alvys_freight_estimates', estimates);
   }, [estimates]);
+
+  // Firestore Live Listeners
+  useEffect(() => {
+    const unsubEstimates = subscribeToCollection<FreightEstimate>('alvys_estimates', (items) => {
+      if (items && items.length > 0) setEstimates(items);
+    });
+    const unsubInvoices = subscribeToCollection<ProposedInvoice>('alvys_invoices', (items) => {
+      if (items && items.length > 0) setInvoices(items);
+    });
+    const unsubProjects = subscribeToCollection<Project>('alvys_projects', (items) => {
+      if (items && items.length > 0) setProjects(items);
+    });
+    const unsubDrivers = subscribeToCollection<FleetDriver>('alvys_drivers', (items) => {
+      if (items && items.length > 0) setDrivers(items);
+    });
+
+    loadSingletonFromFirestore<CompanyProfile>('company_profile').then(profile => {
+      if (profile) setCompanyProfile(profile);
+    });
+
+    return () => {
+      unsubEstimates();
+      unsubInvoices();
+      unsubProjects();
+      unsubDrivers();
+    };
+  }, []);
 
   const handleSaveCompanyProfile = (newProfile: CompanyProfile) => {
     setCompanyProfile(newProfile);
-    localStorage.setItem('alvys_company_profile', JSON.stringify(newProfile));
+    safeLocalStorageSet('alvys_company_profile', newProfile);
+    saveSingletonToFirestore('company_profile', newProfile);
   };
 
   const handleAddDriver = (newDriver: FleetDriver) => {
     setDrivers(prev => [newDriver, ...prev]);
+    saveDocumentToFirestore('alvys_drivers', newDriver);
   };
 
   const handleUpdateDriver = (updated: FleetDriver) => {
     setDrivers(prev => prev.map(d => d.id === updated.id ? updated : d));
+    saveDocumentToFirestore('alvys_drivers', updated);
   };
 
   const handleDeleteDriver = (driverId: string) => {
     setDrivers(prev => prev.filter(d => d.id !== driverId));
+    deleteDocumentFromFirestore('alvys_drivers', driverId);
   };
 
   const handleAddEstimate = (newEst: FreightEstimate) => {
     setEstimates(prev => [newEst, ...prev]);
+    saveDocumentToFirestore('alvys_estimates', newEst);
   };
 
   const handleUpdateEstimate = (updated: FreightEstimate) => {
     setEstimates(prev => prev.map(e => e.id === updated.id ? updated : e));
+    saveDocumentToFirestore('alvys_estimates', updated);
   };
 
   const handleDeleteEstimate = (estId: string) => {
     setEstimates(prev => prev.filter(e => e.id !== estId));
+    deleteDocumentFromFirestore('alvys_estimates', estId);
   };
 
   const handleConvertEstimateToLoad = async (estimate: FreightEstimate) => {
@@ -228,8 +305,10 @@ export default function App() {
     try {
       const { updatedProject } = await syncProjectToGoogleCalendarModule(newProject);
       setProjects(prev => [updatedProject, ...prev]);
+      saveDocumentToFirestore('alvys_projects', updatedProject);
     } catch {
       setProjects(prev => [newProject, ...prev]);
+      saveDocumentToFirestore('alvys_projects', newProject);
     }
 
     // Auto-create matching invoice
@@ -267,6 +346,7 @@ export default function App() {
       correctionsLog: []
     };
     setInvoices(prev => [newInvoice, ...prev]);
+    saveDocumentToFirestore('alvys_invoices', newInvoice);
 
     // Record execution log
     setExecutionLogs(prev => [
@@ -288,8 +368,14 @@ export default function App() {
   };
 
   const [projects, setProjects] = useState<Project[]>(() => {
-    const saved = localStorage.getItem('alvys_freight_projects_v2');
-    return saved ? JSON.parse(saved) : INITIAL_PROJECTS;
+    const saved = localStorage.getItem('alvys_medina_projects_v4');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      } catch {}
+    }
+    return INITIAL_PROJECTS;
   });
   const [scannedDocs, setScannedDocs] = useState<ScannedDocument[]>(INITIAL_SCANNED_DOCS);
   const [invoices, setInvoices] = useState<ProposedInvoice[]>(() => {
@@ -298,11 +384,11 @@ export default function App() {
   });
 
   useEffect(() => {
-    localStorage.setItem('alvys_freight_projects_v2', JSON.stringify(projects));
+    safeLocalStorageSet('alvys_medina_projects_v4', projects);
   }, [projects]);
 
   useEffect(() => {
-    localStorage.setItem('alvys_freight_invoices_v2', JSON.stringify(invoices));
+    safeLocalStorageSet('alvys_freight_invoices_v2', invoices);
   }, [invoices]);
   const [emails, setEmails] = useState<BillingEmail[]>(INITIAL_BILLING_EMAILS);
   const [remittances, setRemittances] = useState<PaymentRemittance[]>(INITIAL_PAYMENT_REMITTANCES);
@@ -529,6 +615,10 @@ export default function App() {
     setProjects(prev => prev.map(p => p.id === updated.id ? updated : p));
   };
 
+  const handleDeleteProject = (projectId: string) => {
+    setProjects(prev => prev.filter(p => p.id !== projectId));
+  };
+
   const handleSyncProjectCalendar = async (proj: Project) => {
     try {
       const { updatedProject } = await syncProjectToGoogleCalendarModule(proj);
@@ -719,26 +809,49 @@ export default function App() {
   const complianceAlertsCount = carriers.filter(c => c.complianceStatus === 'needs_attention' || c.complianceStatus === 'expired').length;
 
   return (
-    <div className="h-screen w-screen flex flex-col bg-[#F5F5F7] text-gray-900 font-sans antialiased overflow-hidden select-none">
-      {/* Top Bar Header */}
-      <Header
-        currentTab={currentTab}
-        onTabChange={setCurrentTab}
-        collaborators={collaborators}
-        windowsConfig={windowsConfig}
-        companyProfile={companyProfile}
-        onOpenWindowsModal={() => setIsWindowsModalOpen(true)}
-        onOpenCompanyModal={() => setIsCompanyModalOpen(true)}
-        onQuickGeneratePDF={handleQuickDownloadPDF}
-        activeAgentsCount={agents.filter(a => a.status === 'active').length}
-        autoPilotEnabled={autoPilotConfig.enabled}
-      />
+    <div className="h-screen w-screen flex flex-col lg:flex-row bg-[#F5F5F7] text-gray-900 font-sans antialiased overflow-hidden select-none">
+      {/* Mobile Top App Header (Phone view only) */}
+      <div className="lg:hidden flex items-center justify-between px-3.5 py-2.5 bg-gray-900 text-white shrink-0 border-b border-gray-800 z-30 shadow-xs">
+        <div className="flex items-center gap-2.5">
+          <button
+            onClick={() => setIsSidebarMobileOpen(true)}
+            className="p-1.5 rounded-lg bg-gray-800 hover:bg-gray-700 text-white transition-colors cursor-pointer"
+            title="Open Menu Drawer"
+          >
+            <Menu className="w-4.5 h-4.5" />
+          </button>
+          <div className="flex items-center gap-2">
+            <div className="w-6 h-6 rounded-md bg-emerald-500 text-gray-950 font-black text-[10px] flex items-center justify-center">
+              FS
+            </div>
+            <div className="leading-tight text-left">
+              <span className="text-xs font-bold text-white block truncate max-w-[150px]">
+                {companyProfile?.companyName || 'GREEN EXPRESS LLC'}
+              </span>
+              <span className="text-[9px] text-emerald-400 font-mono block">
+                USDOT #{companyProfile?.dotNumber || '3892019'}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-1.5">
+          <button
+            onClick={() => setIsCompanyModalOpen(true)}
+            className="p-1.5 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-300 hover:text-white transition-colors cursor-pointer text-xs flex items-center gap-1"
+            title="Company Authority Profile"
+          >
+            <Building2 className="w-3.5 h-3.5" />
+            <span className="text-[10px] hidden sm:inline">Settings</span>
+          </button>
+        </div>
+      </div>
 
       {/* Main Workspace Body */}
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex overflow-hidden relative">
         <Sidebar
           currentTab={currentTab}
-          onTabChange={setCurrentTab}
+          onTabChange={handleTabChange}
           pendingDocsCount={scannedDocs.filter(d => d.status === 'pending_match').length}
           pendingInvoicesCount={invoices.filter(i => i.status === 'needs_review').length}
           pendingEmailsCount={emails.filter(e => e.status === 'pending_approval').length}
@@ -750,19 +863,39 @@ export default function App() {
           autoPilotActive={autoPilotConfig.enabled}
           onOpenWindowsModal={() => setIsWindowsModalOpen(true)}
           onOpenCompanyModal={() => setIsCompanyModalOpen(true)}
+          isOpenOnMobile={isSidebarMobileOpen}
+          onCloseMobile={() => setIsSidebarMobileOpen(false)}
+          isCollapsed={isSidebarCollapsed}
+          onToggleCollapse={() => setIsSidebarCollapsed(prev => !prev)}
         />
 
         {/* Dynamic Route View */}
-        <main className="flex-1 flex flex-col overflow-y-auto custom-scrollbar p-6 bg-[#F5F5F7]">
-          {currentTab === 'estimates' && (
+        <main className="flex-1 flex flex-col overflow-y-auto custom-scrollbar p-2.5 sm:p-4 lg:p-6 pb-24 lg:pb-6 bg-[#F5F5F7]">
+          {currentTab === 'dashboard' && (
+            <FreightAnalyticsDashboard
+              projects={projects}
+              invoices={invoices}
+              estimates={estimates}
+              drivers={drivers}
+              companyProfile={companyProfile}
+              onNavigateToTab={setCurrentTab}
+            />
+          )}
+
+          {(currentTab === 'estimates' || currentTab === 'invoicing') && (
             <FreightEstimatesHub
               estimates={estimates}
+              invoices={invoices}
+              projects={projects}
+              drivers={drivers}
               companyProfile={companyProfile}
               onAddEstimate={handleAddEstimate}
               onUpdateEstimate={handleUpdateEstimate}
               onDeleteEstimate={handleDeleteEstimate}
               onConvertEstimateToLoad={handleConvertEstimateToLoad}
-              onNavigateToTab={handleNavigateToStep}
+              onAddInvoice={(inv) => setInvoices(prev => [inv, ...prev])}
+              onUpdateInvoice={(inv) => setInvoices(prev => prev.map(i => i.id === inv.id ? inv : i))}
+              onNavigateToTab={setCurrentTab}
             />
           )}
 
@@ -839,6 +972,20 @@ export default function App() {
             />
           )}
 
+          {currentTab === 'explorer' && (
+            <DocumentDatabaseExplorer
+              projects={projects}
+              invoices={invoices}
+              drivers={drivers}
+              companyProfile={companyProfile}
+              scannedDocs={scannedDocs}
+              estimates={estimates}
+              onNavigateToTab={handleNavigateToStep}
+              onAddScannedDoc={handleAddScannedDoc}
+              onAddInvoice={(inv) => setInvoices(prev => [inv, ...prev])}
+            />
+          )}
+
           {currentTab === 'projects' && (
             <ProjectManagementView
               projects={projects}
@@ -849,6 +996,9 @@ export default function App() {
               onSelectProject={setSelectedProjectId}
               onNavigateToStep={handleNavigateToStep}
               onAddProject={handleAddProject}
+              onUpdateProject={handleUpdateProject}
+              onDeleteProject={handleDeleteProject}
+              onAddInvoice={(inv) => setInvoices(prev => [inv, ...prev])}
               onAddComment={handleAddComment}
               onToggleTask={handleToggleTask}
               onUpdateProjectStatus={handleUpdateProjectStatus}
@@ -905,6 +1055,7 @@ export default function App() {
               onMigrateFromMyInvoice={(migrated) => setInvoices(prev => [...migrated, ...prev])}
               onAddInvoice={(newInv) => setInvoices(prev => [newInv, ...prev])}
               onDeleteInvoice={handleDeleteInvoice}
+              onAddProject={handleAddProject}
             />
           )}
 
@@ -944,6 +1095,8 @@ export default function App() {
               onCompleteStop={() => {}}
               onUpdateProjectStatus={handleUpdateProjectStatus}
               onAddScannedDoc={handleAddScannedDoc}
+              onAddInvoice={(newInv) => setInvoices(prev => [newInv, ...prev])}
+              onNavigateToTab={handleNavigateToStep}
             />
           )}
 
@@ -965,6 +1118,15 @@ export default function App() {
               onUpdateConfig={setWindowsConfig}
               onTriggerScan={handleSimulateBatchScan}
               onNavigateToStep={handleNavigateToStep}
+            />
+          )}
+
+          {currentTab === 'api-mcp' && (
+            <ApiMcpDeveloperPortal
+              projects={projects}
+              invoices={invoices}
+              companyProfile={companyProfile}
+              onNavigateToTab={setCurrentTab}
             />
           )}
         </main>
@@ -998,6 +1160,57 @@ export default function App() {
         onUpdateConfig={setWindowsConfig}
         onTriggerManualScan={handleSimulateBatchScan}
       />
+
+      {/* Mobile App Native Bottom Navigation Bar (Phone view only) */}
+      <div className="lg:hidden fixed bottom-0 inset-x-0 z-30 bg-white/95 backdrop-blur-md border-t border-gray-200 px-1.5 py-1.5 flex items-center justify-around shadow-lg">
+        <button
+          onClick={() => handleTabChange('dashboard')}
+          className={`flex flex-col items-center gap-0.5 px-3 py-1 rounded-xl text-[10px] font-semibold transition-all cursor-pointer ${
+            currentTab === 'dashboard' ? 'text-emerald-700 font-bold bg-emerald-50 border border-emerald-200/60' : 'text-gray-500 hover:text-gray-900'
+          }`}
+        >
+          <BarChart3 className="w-4 h-4" />
+          <span>Analytics</span>
+        </button>
+
+        <button
+          onClick={() => handleTabChange('gemini-admin')}
+          className={`flex flex-col items-center gap-0.5 px-3 py-1 rounded-xl text-[10px] font-semibold transition-all cursor-pointer ${
+            currentTab === 'gemini-admin' ? 'text-emerald-700 font-bold bg-emerald-50 border border-emerald-200/60' : 'text-gray-500 hover:text-gray-900'
+          }`}
+        >
+          <Bot className="w-4 h-4" />
+          <span>Gemini AI</span>
+        </button>
+
+        <button
+          onClick={() => handleTabChange('estimates')}
+          className={`flex flex-col items-center gap-0.5 px-3 py-1 rounded-xl text-[10px] font-semibold transition-all cursor-pointer ${
+            currentTab === 'estimates' || currentTab === 'invoicing' ? 'text-emerald-700 font-bold bg-emerald-50 border border-emerald-200/60' : 'text-gray-500 hover:text-gray-900'
+          }`}
+        >
+          <Calculator className="w-4 h-4" />
+          <span>Quotes/Inv</span>
+        </button>
+
+        <button
+          onClick={() => handleTabChange('projects')}
+          className={`flex flex-col items-center gap-0.5 px-3 py-1 rounded-xl text-[10px] font-semibold transition-all cursor-pointer ${
+            currentTab === 'projects' ? 'text-emerald-700 font-bold bg-emerald-50 border border-emerald-200/60' : 'text-gray-500 hover:text-gray-900'
+          }`}
+        >
+          <FolderKanban className="w-4 h-4" />
+          <span>Dispatch</span>
+        </button>
+
+        <button
+          onClick={() => setIsSidebarMobileOpen(true)}
+          className="flex flex-col items-center gap-0.5 px-3 py-1 rounded-xl text-[10px] font-semibold text-gray-500 hover:text-gray-900 transition-all cursor-pointer"
+        >
+          <Layers className="w-4 h-4" />
+          <span>More Menu</span>
+        </button>
+      </div>
     </div>
   );
 }

@@ -17,7 +17,12 @@ import {
   Calculator,
   Users,
   Building2,
-  Bot
+  Bot,
+  HardDrive,
+  X,
+  ChevronLeft,
+  Sparkles,
+  BarChart3
 } from 'lucide-react';
 import { CompanyProfile } from '../../types';
 
@@ -35,6 +40,10 @@ interface SidebarProps {
   autoPilotActive?: boolean;
   onOpenWindowsModal: () => void;
   onOpenCompanyModal?: () => void;
+  isOpenOnMobile?: boolean;
+  onCloseMobile?: () => void;
+  isCollapsed?: boolean;
+  onToggleCollapse?: () => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -50,9 +59,20 @@ export const Sidebar: React.FC<SidebarProps> = ({
   companyProfile,
   autoPilotActive = true,
   onOpenWindowsModal,
-  onOpenCompanyModal
+  onOpenCompanyModal,
+  isOpenOnMobile = false,
+  onCloseMobile,
+  isCollapsed = false,
+  onToggleCollapse
 }) => {
   const foundryModules = [
+    {
+      id: 'dashboard',
+      title: 'Analytics Dashboard',
+      subtitle: 'Freight Yield & Volume Metrics',
+      icon: BarChart3,
+      badge: 'Recharts',
+    },
     {
       id: 'gemini-admin',
       title: 'Gemini Omni Agent',
@@ -62,10 +82,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
     },
     {
       id: 'estimates',
-      title: 'Freight Estimates',
-      subtitle: 'Quotes & Rate Calculations',
+      title: 'Quotes, Invoices & Fuel',
+      subtitle: 'Estimates, AR Billing & FSC Engine',
       icon: Calculator,
-      badge: 'Quotes',
+      badge: 'Quotes & AR',
     },
     {
       id: 'projects',
@@ -82,11 +102,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
       badge: 'Drivers',
     },
     {
-      id: 'invoicing',
-      title: 'Billing & Invoices',
-      subtitle: 'Native AR & Factoring',
-      icon: ReceiptText,
-      badge: pendingInvoicesCount > 0 ? pendingInvoicesCount : undefined,
+      id: 'explorer',
+      title: 'Docs & Base Explorer',
+      subtitle: 'PDFs, Files & Database',
+      icon: HardDrive,
+      badge: 'Explorer',
     },
     {
       id: 'driver',
@@ -119,6 +139,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
       title: 'Live Telematics',
       subtitle: 'Samsara/Motive Telemetry',
       icon: Radio,
+    },
+    {
+      id: 'api-mcp',
+      title: 'API Pro & MCP',
+      subtitle: 'ChatGPT Actions & MCP',
+      icon: Sparkles,
+      badge: 'PRO',
     },
   ];
 
@@ -164,14 +191,80 @@ export const Sidebar: React.FC<SidebarProps> = ({
     },
   ];
 
+  const handleItemClick = (tabId: string) => {
+    onTabChange(tabId);
+    if (onCloseMobile) {
+      onCloseMobile();
+    }
+  };
+
   return (
-    <aside className="w-64 bg-white border-r border-gray-200 flex flex-col justify-between shrink-0 select-none overflow-y-auto">
-      <div className="p-4 space-y-6">
+    <>
+      {/* Mobile background overlay */}
+      {isOpenOnMobile && (
+        <div 
+          onClick={onCloseMobile}
+          className="lg:hidden fixed inset-0 z-40 bg-gray-900/40 backdrop-blur-xs transition-opacity duration-300"
+        />
+      )}
+
+      <aside className={`bg-white border-r border-gray-200 flex flex-col justify-between shrink-0 select-none overflow-y-auto transition-all duration-300
+        ${isOpenOnMobile ? 'translate-x-0 fixed inset-y-0 left-0 z-50 w-72 sm:w-80 max-w-[85vw] h-screen shadow-2xl flex' : '-translate-x-full fixed inset-y-0 left-0 z-50 h-screen hidden'}
+        lg:translate-x-0 lg:static lg:h-auto lg:z-0 lg:flex ${isCollapsed ? 'lg:w-18' : 'lg:w-64'}
+      `}>
+      {/* Desktop & Mobile Brand Header */}
+      <div className={`p-3.5 border-b border-gray-200 bg-gray-900 text-white shrink-0 ${isCollapsed ? 'lg:px-2' : ''}`}>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-8 h-8 rounded-lg bg-emerald-500 text-gray-950 font-black text-xs flex items-center justify-center shadow-md shrink-0">
+              FS
+            </div>
+            {!isCollapsed && (
+              <div className="text-left min-w-0">
+                <div className="text-xs font-bold text-white leading-tight truncate max-w-[130px]">
+                  {companyProfile?.companyName || 'GREEN EXPRESS LLC'}
+                </div>
+                <div className="text-[10px] text-emerald-400 font-mono">
+                  USDOT #{companyProfile?.dotNumber || '3892019'}
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="flex items-center gap-1">
+            {/* Mobile Close Button */}
+            {isOpenOnMobile && (
+              <button
+                onClick={onCloseMobile}
+                className="lg:hidden p-1.5 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-300 hover:text-white transition-colors cursor-pointer"
+                title="Close Navigation"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
+
+            {/* Desktop Collapse / Expand Toggle */}
+            {onToggleCollapse && (
+              <button
+                onClick={onToggleCollapse}
+                className="hidden lg:flex p-1.5 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-300 hover:text-white transition-colors cursor-pointer"
+                title={isCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
+              >
+                {isCollapsed ? <ChevronRight className="w-3.5 h-3.5" /> : <ChevronLeft className="w-3.5 h-3.5" />}
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <div className={`p-3 space-y-5 flex-1 ${isCollapsed ? 'lg:px-2' : ''}`}>
         {/* Core Modules */}
         <div>
-          <div className="px-3 mb-2 flex items-center justify-between text-xs text-gray-500 font-semibold uppercase tracking-wider">
-            <span>TMS Core Modules</span>
-          </div>
+          {!isCollapsed && (
+            <div className="px-3 mb-2 flex items-center justify-between text-xs text-gray-500 font-semibold uppercase tracking-wider">
+              <span>TMS Core Modules</span>
+            </div>
+          )}
           <div className="space-y-1">
             {foundryModules.map((item) => {
               const Icon = item.icon;
@@ -179,19 +272,22 @@ export const Sidebar: React.FC<SidebarProps> = ({
               return (
                 <button
                   key={item.id}
-                  onClick={() => onTabChange(item.id)}
-                  className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left transition-all cursor-pointer ${
+                  onClick={() => handleItemClick(item.id)}
+                  title={isCollapsed ? `${item.title} - ${item.subtitle}` : undefined}
+                  className={`w-full flex items-center ${isCollapsed ? 'lg:justify-center lg:px-2' : 'gap-3 px-3'} py-2 rounded-lg text-left transition-all cursor-pointer ${
                     isActive
                       ? 'bg-gray-100 text-gray-900 font-semibold border border-gray-200'
                       : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
                   }`}
                 >
                   <Icon className="w-4 h-4 shrink-0 text-gray-500" />
-                  <div className="flex-1 min-w-0">
-                    <div className="text-xs truncate">{item.title}</div>
-                    <div className="text-[10px] text-gray-500 truncate">{item.subtitle}</div>
-                  </div>
-                  {item.badge !== undefined && (
+                  {!isCollapsed && (
+                    <div className="flex-1 min-w-0">
+                      <div className="text-xs truncate">{item.title}</div>
+                      <div className="text-[10px] text-gray-500 truncate">{item.subtitle}</div>
+                    </div>
+                  )}
+                  {!isCollapsed && item.badge !== undefined && (
                     <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-gray-100 text-gray-700 border border-gray-200">
                       {item.badge}
                     </span>
@@ -204,10 +300,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
         {/* 5-Step Invoicing & Paperwork Pipeline */}
         <div>
-          <div className="px-3 mb-2 flex items-center justify-between text-xs text-gray-500 font-semibold uppercase tracking-wider">
-            <span>Billing Pipeline</span>
-            <span className="text-[10px] font-mono text-gray-400">5-Step</span>
-          </div>
+          {!isCollapsed && (
+            <div className="px-3 mb-2 flex items-center justify-between text-xs text-gray-500 font-semibold uppercase tracking-wider">
+              <span>Billing Pipeline</span>
+              <span className="text-[10px] font-mono text-gray-400">5-Step</span>
+            </div>
+          )}
 
           <div className="space-y-1">
             {workflowSteps.map((step) => {
@@ -215,8 +313,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
               return (
                 <button
                   key={step.id}
-                  onClick={() => onTabChange(step.id)}
-                  className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left transition-all cursor-pointer ${
+                  onClick={() => handleItemClick(step.id)}
+                  title={isCollapsed ? `${step.stepNum}. ${step.title}` : undefined}
+                  className={`w-full flex items-center ${isCollapsed ? 'lg:justify-center lg:px-2' : 'gap-3 px-3'} py-2 rounded-lg text-left transition-all cursor-pointer ${
                     isActive
                       ? 'bg-gray-100 text-gray-900 font-semibold border border-gray-200'
                       : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
@@ -228,12 +327,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     {step.stepNum}
                   </div>
 
-                  <div className="flex-1 min-w-0">
-                    <div className="text-xs truncate">{step.title}</div>
-                    <div className="text-[10px] text-gray-500 truncate">{step.subtitle}</div>
-                  </div>
+                  {!isCollapsed && (
+                    <div className="flex-1 min-w-0">
+                      <div className="text-xs truncate">{step.title}</div>
+                      <div className="text-[10px] text-gray-500 truncate">{step.subtitle}</div>
+                    </div>
+                  )}
 
-                  {step.badge !== undefined && (
+                  {!isCollapsed && step.badge !== undefined && (
                     <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-gray-100 text-gray-700 border border-gray-200">
                       {step.badge}
                     </span>
@@ -247,55 +348,63 @@ export const Sidebar: React.FC<SidebarProps> = ({
         {/* Integrations Hub */}
         <div>
           <button
-            onClick={() => onTabChange('integrations')}
-            className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left transition-all cursor-pointer ${
+            onClick={() => handleItemClick('integrations')}
+            title={isCollapsed ? "120+ Integrations Hub" : undefined}
+            className={`w-full flex items-center ${isCollapsed ? 'lg:justify-center lg:px-2' : 'gap-3 px-3'} py-2 rounded-lg text-left transition-all cursor-pointer ${
               currentTab === 'integrations'
                 ? 'bg-gray-100 text-gray-900 font-semibold border border-gray-200'
                 : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
             }`}
           >
             <Layers className="w-4 h-4 text-gray-500 shrink-0" />
-            <div className="flex-1 min-w-0">
-              <div className="text-xs truncate font-medium">120+ Integrations Hub</div>
-              <div className="text-[10px] text-gray-500 truncate">DAT, Motive, TriumphPay</div>
-            </div>
+            {!isCollapsed && (
+              <div className="flex-1 min-w-0">
+                <div className="text-xs truncate font-medium">120+ Integrations Hub</div>
+                <div className="text-[10px] text-gray-500 truncate">DAT, Motive, TriumphPay</div>
+              </div>
+            )}
           </button>
         </div>
       </div>
 
       {/* Footer / Company Profile & System Status */}
-      <div className="p-4 border-t border-gray-200 bg-gray-50 space-y-2">
+      <div className={`p-3 border-t border-gray-200 bg-gray-50 space-y-2 ${isCollapsed ? 'lg:px-2' : ''}`}>
         {onOpenCompanyModal && (
           <button
             onClick={onOpenCompanyModal}
-            className="w-full flex items-center justify-between p-2.5 rounded-lg bg-white hover:bg-gray-100 border border-gray-200 text-xs text-gray-800 transition-colors cursor-pointer"
+            title={isCollapsed ? "Company Authority Settings" : undefined}
+            className={`w-full flex items-center ${isCollapsed ? 'lg:justify-center' : 'justify-between'} p-2 rounded-lg bg-white hover:bg-gray-100 border border-gray-200 text-xs text-gray-800 transition-colors cursor-pointer`}
           >
-            <div className="flex items-center gap-2">
-              <Building2 className="w-4 h-4 text-gray-500" />
-              <div className="text-left">
-                <div className="font-semibold text-gray-900 text-[11px] truncate max-w-[130px]">
-                  {companyProfile?.companyName || 'GREEN EXPRESS LLC'}
+            <div className="flex items-center gap-2 min-w-0">
+              <Building2 className="w-4 h-4 text-gray-500 shrink-0" />
+              {!isCollapsed && (
+                <div className="text-left min-w-0">
+                  <div className="font-semibold text-gray-900 text-[11px] truncate max-w-[130px]">
+                    {companyProfile?.companyName || 'GREEN EXPRESS LLC'}
+                  </div>
+                  <div className="text-[10px] text-gray-500 truncate max-w-[130px]">
+                    Admin Settings & SDK
+                  </div>
                 </div>
-                <div className="text-[10px] text-gray-500 truncate max-w-[130px]">
-                  {companyProfile?.email || 'dispatch@greenexpressllc.com'}
-                </div>
-              </div>
+              )}
             </div>
-            <Settings2 className="w-3.5 h-3.5 text-gray-400 hover:text-gray-700" />
+            {!isCollapsed && <Settings2 className="w-3.5 h-3.5 text-gray-400 hover:text-gray-700" />}
           </button>
         )}
 
         <button
           onClick={onOpenWindowsModal}
-          className="w-full flex items-center justify-between p-2 rounded-lg bg-white hover:bg-gray-100 border border-gray-200 text-xs text-gray-600 transition-colors cursor-pointer"
+          title={isCollapsed ? "Local Folder Watcher" : undefined}
+          className={`w-full flex items-center ${isCollapsed ? 'lg:justify-center' : 'justify-between'} p-2 rounded-lg bg-white hover:bg-gray-100 border border-gray-200 text-xs text-gray-600 transition-colors cursor-pointer`}
         >
-          <div className="flex items-center gap-2">
-            <Laptop className="w-3.5 h-3.5 text-gray-500" />
-            <span className="text-[10px] font-medium text-gray-700">Local Folder Watcher</span>
+          <div className="flex items-center gap-2 min-w-0">
+            <Laptop className="w-3.5 h-3.5 text-gray-500 shrink-0" />
+            {!isCollapsed && <span className="text-[10px] font-medium text-gray-700 truncate">Local Folder Watcher</span>}
           </div>
-          <span className="text-[10px] text-gray-400">Ready</span>
+          {!isCollapsed && <span className="text-[10px] text-gray-400">Ready</span>}
         </button>
       </div>
     </aside>
+    </>
   );
 };

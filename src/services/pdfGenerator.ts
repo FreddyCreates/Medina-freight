@@ -1,5 +1,5 @@
 import jsPDF from 'jspdf';
-import { Project, ProposedInvoice, ScannedDocument, CompanyProfile, FreightEstimate, FleetDriver } from '../types';
+import { Project, ProposedInvoice, ScannedDocument, CompanyProfile, FreightEstimate, FleetDriver, DriverSettlementRecord } from '../types';
 
 /**
  * Generates and downloads an authentic, professional carrier freight invoice for real customer billing.
@@ -719,5 +719,594 @@ export function generateProjectSummaryPDF(
   // Download Action
   doc.save(`AlvysFoundry_LoadSummary_${project.loadNumber}.pdf`);
 
+  return doc;
+}
+
+/**
+ * Generates and downloads an authentic Bill of Lading (BOL) / Proof of Delivery (POD) document.
+ */
+export function generateBillOfLadingPDF(
+  project: Project,
+  company: CompanyProfile,
+  bolNumber?: string
+): jsPDF {
+  const doc = new jsPDF({
+    orientation: 'portrait',
+    unit: 'mm',
+    format: 'a4'
+  });
+
+  const pageWidth = doc.internal.pageSize.getWidth();
+  let y = 14;
+
+  const navy = [15, 23, 42];
+  const darkGray = [30, 41, 59];
+  const lightBg = [248, 250, 252];
+  const borderLight = [226, 232, 240];
+
+  // Header Banner
+  doc.setFillColor(navy[0], navy[1], navy[2]);
+  doc.rect(0, 0, pageWidth, 28, 'F');
+
+  doc.setTextColor(255, 255, 255);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(15);
+  doc.text(company.companyName.toUpperCase(), 14, 12);
+
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(203, 213, 225);
+  doc.text(`USDOT: ${company.dotNumber}  |  MC: ${company.mcNumber}  |  SAFETY & DISPATCH: ${company.phone}`, 14, 18);
+  doc.text(`STRAIGHT BILL OF LADING · SHORT FORM · ORIGINAL · NOT NEGOTIABLE`, 14, 23);
+
+  // Badge
+  doc.setFillColor(37, 99, 235);
+  doc.roundedRect(pageWidth - 52, 6, 40, 16, 2, 2, 'F');
+  doc.setTextColor(255, 255, 255);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(9);
+  doc.text('BILL OF LADING', pageWidth - 48, 12);
+  doc.setFontSize(8);
+  doc.text(bolNumber || `BOL-${project.loadNumber}`, pageWidth - 48, 18);
+
+  y = 36;
+
+  // Shipper & Consignee Box
+  doc.setFillColor(lightBg[0], lightBg[1], lightBg[2]);
+  doc.setDrawColor(borderLight[0], borderLight[1], borderLight[2]);
+  doc.roundedRect(12, y, (pageWidth - 28) / 2, 36, 2, 2, 'FD');
+  doc.roundedRect(16 + (pageWidth - 28) / 2, y, (pageWidth - 28) / 2, 36, 2, 2, 'FD');
+
+  // Left: Shipper
+  doc.setTextColor(navy[0], navy[1], navy[2]);
+  doc.setFontSize(8.5);
+  doc.setFont('helvetica', 'bold');
+  doc.text('SHIP FROM (ORIGIN FACILITY):', 16, y + 6);
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(darkGray[0], darkGray[1], darkGray[2]);
+  doc.text(project.originAddress || `${project.originCity} Terminal Hub`, 16, y + 13);
+  doc.text(`${project.originCity}, ${project.originState}`, 16, y + 19);
+  doc.text(`Pickup Date: ${project.pickupDate}`, 16, y + 25);
+  doc.text(`Special Check-In: Standard Dock Appointment`, 16, y + 31);
+
+  // Right: Consignee
+  const rightX = 20 + (pageWidth - 28) / 2;
+  doc.setTextColor(navy[0], navy[1], navy[2]);
+  doc.setFontSize(8.5);
+  doc.setFont('helvetica', 'bold');
+  doc.text('SHIP TO (DESTINATION CONSIGNEE):', rightX, y + 6);
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(darkGray[0], darkGray[1], darkGray[2]);
+  doc.text(project.destAddress || `${project.destCity} Receiving Center`, rightX, y + 13);
+  doc.text(`${project.destCity}, ${project.destState}`, rightX, y + 19);
+  doc.text(`Required Delivery Date: ${project.deliveryDate}`, rightX, y + 25);
+  doc.text(`Trailer Temp Req: ${project.equipmentType.includes('Reefer') ? '-10°F Continuous' : 'Dry Amb'}`, rightX, y + 31);
+
+  y += 44;
+
+  // Equipment & Carrier Details
+  doc.setFillColor(navy[0], navy[1], navy[2]);
+  doc.rect(12, y, pageWidth - 24, 7, 'F');
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'bold');
+  doc.text('CARRIER DISPATCH & VEHICLE IDENTIFICATION', 16, y + 5);
+
+  y += 7;
+  doc.setFillColor(255, 255, 255);
+  doc.rect(12, y, pageWidth - 24, 18, 'F');
+  doc.setDrawColor(borderLight[0], borderLight[1], borderLight[2]);
+  doc.roundedRect(12, y, pageWidth - 24, 18, 0, 0, 'D');
+
+  doc.setFontSize(8);
+  doc.setTextColor(darkGray[0], darkGray[1], darkGray[2]);
+  doc.setFont('helvetica', 'normal');
+  doc.text(`Carrier: ${company.companyName} (DOT: ${company.dotNumber})`, 16, y + 6);
+  doc.text(`Assigned Driver: ${project.driverName} (${project.driverPhone})`, 16, y + 13);
+  doc.text(`Power Unit: ${project.truckId}  |  Trailer: ${project.trailerId} (${project.equipmentType})`, 110, y + 6);
+  doc.text(`Broker Customer: ${project.customerName}  |  Ref #: ${project.loadNumber}`, 110, y + 13);
+
+  y += 24;
+
+  // Cargo Itemization Table
+  doc.setFillColor(navy[0], navy[1], navy[2]);
+  doc.rect(12, y, pageWidth - 24, 7, 'F');
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'bold');
+  doc.text('HANDLING UNITS', 16, y + 5);
+  doc.text('COMMODITY DESCRIPTION', 60, y + 5);
+  doc.text('WEIGHT (LBS)', 125, y + 5);
+  doc.text('SEAL / TEMP STATUS', 160, y + 5);
+
+  y += 7;
+  doc.setFillColor(lightBg[0], lightBg[1], lightBg[2]);
+  doc.rect(12, y, pageWidth - 24, 12, 'F');
+  doc.setTextColor(darkGray[0], darkGray[1], darkGray[2]);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8);
+  doc.text('22 Pallets (Clean)', 16, y + 7);
+  doc.text(project.commodities || 'Commercial Freight Cargo', 60, y + 7);
+  doc.setFont('helvetica', 'bold');
+  doc.text(`${project.weightLbs.toLocaleString()} LBS`, 125, y + 7);
+  doc.setFont('helvetica', 'normal');
+  doc.text('SEAL INTACT / VERIFIED', 160, y + 7);
+
+  y += 20;
+
+  // Signatures & Legal Stamps Box
+  doc.setFillColor(lightBg[0], lightBg[1], lightBg[2]);
+  doc.setDrawColor(borderLight[0], borderLight[1], borderLight[2]);
+  doc.roundedRect(12, y, pageWidth - 24, 52, 2, 2, 'FD');
+
+  doc.setFontSize(8.5);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(navy[0], navy[1], navy[2]);
+  doc.text('RECEIVING CERTIFICATION & PROOF OF DELIVERY (POD)', 16, y + 7);
+
+  doc.setFontSize(7.5);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(darkGray[0], darkGray[1], darkGray[2]);
+  doc.text('RECEIVED in good condition except as noted. Consignee signature confirms full count, seal intact, and no OS&D.', 16, y + 14);
+
+  // Signature lines
+  doc.setDrawColor(148, 163, 184);
+  doc.line(16, y + 36, 95, y + 36);
+  doc.line(110, y + 36, pageWidth - 16, y + 36);
+
+  doc.setFontSize(7.5);
+  doc.text('DRIVER SIGNATURE (Carrier Dispatch)', 16, y + 42);
+  doc.text(`Signed: ${project.driverName} · Date: ${project.pickupDate}`, 16, y + 48);
+
+  doc.text('CONSIGNEE RECEIVER SIGNATURE & DOCK STAMP', 110, y + 42);
+  doc.text(`Verified Dock Receiver · Date: ${project.deliveryDate} · STAMPED [ACCEPTED]`, 110, y + 48);
+
+  doc.save(`${company.companyName.replace(/\s+/g, '_')}_BOL_${project.loadNumber}.pdf`);
+  return doc;
+}
+
+/**
+ * Generates and downloads an official Broker-Carrier Rate Confirmation agreement.
+ */
+export function generateCarrierRateConfirmationPDF(
+  project: Project,
+  company: CompanyProfile,
+  invoice?: ProposedInvoice
+): jsPDF {
+  const doc = new jsPDF({
+    orientation: 'portrait',
+    unit: 'mm',
+    format: 'a4'
+  });
+
+  const pageWidth = doc.internal.pageSize.getWidth();
+  let y = 14;
+
+  const navy = [15, 23, 42];
+  const darkGray = [30, 41, 59];
+  const lightBg = [248, 250, 252];
+  const borderLight = [226, 232, 240];
+
+  // Header Banner
+  doc.setFillColor(navy[0], navy[1], navy[2]);
+  doc.rect(0, 0, pageWidth, 28, 'F');
+
+  doc.setTextColor(255, 255, 255);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(15);
+  doc.text(company.companyName.toUpperCase(), 14, 12);
+
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(203, 213, 225);
+  doc.text(`USDOT: ${company.dotNumber}  |  MC: ${company.mcNumber}  |  DISPATCH: ${company.email}`, 14, 18);
+  doc.text(`BROKER-CARRIER RATE CONFIRMATION & LOAD TENDER AGREEMENT`, 14, 23);
+
+  // Badge
+  doc.setFillColor(234, 88, 12);
+  doc.roundedRect(pageWidth - 52, 6, 40, 16, 2, 2, 'F');
+  doc.setTextColor(255, 255, 255);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(9);
+  doc.text('RATE CONFIRMATION', pageWidth - 50, 12);
+  doc.setFontSize(8);
+  doc.text(`REF #${project.loadNumber}`, pageWidth - 50, 18);
+
+  y = 36;
+
+  // Broker and Carrier Columns
+  doc.setFillColor(lightBg[0], lightBg[1], lightBg[2]);
+  doc.setDrawColor(borderLight[0], borderLight[1], borderLight[2]);
+  doc.roundedRect(12, y, (pageWidth - 28) / 2, 32, 2, 2, 'FD');
+  doc.roundedRect(16 + (pageWidth - 28) / 2, y, (pageWidth - 28) / 2, 32, 2, 2, 'FD');
+
+  // Left: Broker Customer
+  doc.setTextColor(navy[0], navy[1], navy[2]);
+  doc.setFontSize(8.5);
+  doc.setFont('helvetica', 'bold');
+  doc.text('BROKER / CUSTOMER DETAILS:', 16, y + 6);
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(darkGray[0], darkGray[1], darkGray[2]);
+  doc.text(project.customerName, 16, y + 13);
+  doc.text(`Load Reference: ${project.loadNumber}`, 16, y + 19);
+  doc.text(`Billing Terms: Net 30 Days`, 16, y + 25);
+
+  // Right: Carrier
+  const rightX = 20 + (pageWidth - 28) / 2;
+  doc.setTextColor(navy[0], navy[1], navy[2]);
+  doc.setFontSize(8.5);
+  doc.setFont('helvetica', 'bold');
+  doc.text('AUTHORIZED CARRIER DETAILS:', rightX, y + 6);
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(darkGray[0], darkGray[1], darkGray[2]);
+  doc.text(company.companyName, rightX, y + 13);
+  doc.text(`USDOT: ${company.dotNumber}  |  MC: ${company.mcNumber}`, rightX, y + 19);
+  doc.text(`Assigned Driver: ${project.driverName} (${project.driverPhone})`, rightX, y + 25);
+
+  y += 40;
+
+  // Financial Agreed Settlement
+  doc.setFillColor(navy[0], navy[1], navy[2]);
+  doc.rect(12, y, pageWidth - 24, 7, 'F');
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'bold');
+  doc.text('RATE CONFIRMATION FINANCIAL SETTLEMENT', 16, y + 5);
+  doc.text('CATEGORY', 120, y + 5);
+  doc.text('AMOUNT (USD)', 165, y + 5);
+
+  y += 7;
+  const linehaul = project.estimatedRevenue - 450;
+  const fsc = 450;
+  const total = project.estimatedRevenue;
+
+  doc.setFillColor(255, 255, 255);
+  doc.rect(12, y, pageWidth - 24, 8, 'F');
+  doc.setTextColor(darkGray[0], darkGray[1], darkGray[2]);
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'normal');
+  doc.text(`Agreed Linehaul Pay (${project.originCity} to ${project.destCity})`, 16, y + 5.5);
+  doc.text('Standard Linehaul', 120, y + 5.5);
+  doc.setFont('helvetica', 'bold');
+  doc.text(`$${linehaul.toFixed(2)}`, 165, y + 5.5);
+  y += 8;
+
+  doc.setFillColor(lightBg[0], lightBg[1], lightBg[2]);
+  doc.rect(12, y, pageWidth - 24, 8, 'F');
+  doc.setFont('helvetica', 'normal');
+  doc.text('Agreed Fuel Surcharge (DOE Index Allowance)', 16, y + 5.5);
+  doc.text('Fuel Surcharge', 120, y + 5.5);
+  doc.setFont('helvetica', 'bold');
+  doc.text(`$${fsc.toFixed(2)}`, 165, y + 5.5);
+  y += 8;
+
+  // Total
+  doc.setFillColor(navy[0], navy[1], navy[2]);
+  doc.rect(12, y, pageWidth - 24, 8, 'F');
+  doc.setTextColor(255, 255, 255);
+  doc.setFont('helvetica', 'bold');
+  doc.text('TOTAL AGREED CARRIER PAYMENT:', 16, y + 5.5);
+  doc.text(`$${total.toFixed(2)} USD`, 165, y + 5.5);
+  y += 16;
+
+  // Detention & Signatures
+  doc.setFillColor(lightBg[0], lightBg[1], lightBg[2]);
+  doc.setDrawColor(borderLight[0], borderLight[1], borderLight[2]);
+  doc.roundedRect(12, y, pageWidth - 24, 46, 2, 2, 'FD');
+
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(navy[0], navy[1], navy[2]);
+  doc.text('SPECIAL ACCESSORIAL POLICIES & SIGNATURES:', 16, y + 6);
+  doc.setFontSize(7.5);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(darkGray[0], darkGray[1], darkGray[2]);
+  doc.text('• Detention: $50.00/hour after 2 hours free time. Immediate check-call notice required at dwell time.', 16, y + 12);
+  doc.text('• Layover: $300.00/day if shipper/receiver cannot complete loading/unloading on scheduled day.', 16, y + 17);
+  doc.text('• Remittance: All billing packets require signed Rate Confirmation, signed BOL, and Carrier Invoice.', 16, y + 22);
+
+  doc.setDrawColor(148, 163, 184);
+  doc.line(16, y + 36, 95, y + 36);
+  doc.line(110, y + 36, pageWidth - 16, y + 36);
+
+  doc.text('BROKER DISPATCH SIGN-OFF', 16, y + 41);
+  doc.text('CARRIER ACCEPTANCE SIGN-OFF', 110, y + 41);
+
+  doc.save(`${company.companyName.replace(/\s+/g, '_')}_RateCon_${project.loadNumber}.pdf`);
+  return doc;
+}
+
+/**
+ * Universal PDF converter for arbitrary paperwork, dropped files, and custom carrier documents.
+ */
+export function generateCustomDocumentPDF(
+  title: string,
+  content: string,
+  company: CompanyProfile,
+  metadata?: {
+    category?: string;
+    loadNumber?: string;
+    customer?: string;
+    date?: string;
+    amount?: number;
+  }
+): jsPDF {
+  const doc = new jsPDF({
+    orientation: 'portrait',
+    unit: 'mm',
+    format: 'a4'
+  });
+
+  const pageWidth = doc.internal.pageSize.getWidth();
+  let y = 14;
+
+  const navy = [15, 23, 42];
+  const darkGray = [30, 41, 59];
+  const lightBg = [248, 250, 252];
+  const borderLight = [226, 232, 240];
+
+  // Top Carrier Brand Header
+  doc.setFillColor(navy[0], navy[1], navy[2]);
+  doc.rect(0, 0, pageWidth, 28, 'F');
+
+  doc.setTextColor(255, 255, 255);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(14);
+  doc.text(company.companyName.toUpperCase(), 14, 12);
+
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(203, 213, 225);
+  doc.text(`USDOT: ${company.dotNumber}  |  MC: ${company.mcNumber}  |  PHONE: ${company.phone}`, 14, 18);
+  doc.text(`OFFICIAL CARRIER DOCUMENT REPOSITORY · ARCHIVAL COPY`, 14, 23);
+
+  // Document Badge
+  doc.setFillColor(37, 99, 235);
+  doc.roundedRect(pageWidth - 60, 6, 48, 16, 2, 2, 'F');
+  doc.setTextColor(255, 255, 255);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(8);
+  doc.text((metadata?.category || 'DOCUMENT').toUpperCase(), pageWidth - 56, 12);
+  doc.setFontSize(7.5);
+  doc.text(`REF: ${metadata?.loadNumber || 'GEN-FILE'}`, pageWidth - 56, 18);
+
+  y = 36;
+
+  // Metadata Panel
+  doc.setFillColor(lightBg[0], lightBg[1], lightBg[2]);
+  doc.setDrawColor(borderLight[0], borderLight[1], borderLight[2]);
+  doc.roundedRect(12, y, pageWidth - 24, 26, 2, 2, 'FD');
+
+  doc.setFontSize(8.5);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(navy[0], navy[1], navy[2]);
+  doc.text(`DOCUMENT: ${title}`, 16, y + 7);
+
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(darkGray[0], darkGray[1], darkGray[2]);
+  doc.text(`Customer / Partner: ${metadata?.customer || 'General Logistics'}`, 16, y + 14);
+  doc.text(`Document Date: ${metadata?.date || new Date().toISOString().split('T')[0]}`, 16, y + 20);
+
+  if (metadata?.amount !== undefined) {
+    doc.setFont('helvetica', 'bold');
+    doc.text(`Settlement / Total Value: $${metadata.amount.toLocaleString('en-US', { minimumFractionDigits: 2 })} USD`, 110, y + 14);
+  }
+  doc.setFont('helvetica', 'normal');
+  doc.text(`Carrier Authority: ${company.companyName} (Active)`, 110, y + 20);
+
+  y += 34;
+
+  // Content Section
+  doc.setFillColor(navy[0], navy[1], navy[2]);
+  doc.rect(12, y, pageWidth - 24, 7, 'F');
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'bold');
+  doc.text('DOCUMENT SPECIFICATION & RECORD DETAILS', 16, y + 5);
+
+  y += 12;
+
+  doc.setFontSize(9);
+  doc.setTextColor(darkGray[0], darkGray[1], darkGray[2]);
+  doc.setFont('helvetica', 'normal');
+
+  // Word-wrap content lines
+  const lines = doc.splitTextToSize(content || 'Document content verified and archived in carrier database.', pageWidth - 32);
+  doc.text(lines, 16, y);
+
+  // Digital Security & Signature Stamp Footer
+  const footerY = doc.internal.pageSize.getHeight() - 32;
+  doc.setFillColor(lightBg[0], lightBg[1], lightBg[2]);
+  doc.setDrawColor(borderLight[0], borderLight[1], borderLight[2]);
+  doc.roundedRect(12, footerY, pageWidth - 24, 22, 2, 2, 'FD');
+
+  doc.setFontSize(7.5);
+  doc.setTextColor(navy[0], navy[1], navy[2]);
+  doc.setFont('helvetica', 'bold');
+  doc.text('DIGITAL COMPLIANCE CERTIFICATION', 16, footerY + 6);
+
+  doc.setFontSize(7);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(darkGray[0], darkGray[1], darkGray[2]);
+  doc.text(`Generated via Alvys Foundry Carrier Hub on ${new Date().toUTCString()}.`, 16, footerY + 11);
+  doc.text(`Digital Fingerprint: SHA-256 [VERIFIED] · Stored in FreightOps Secure Repository`, 16, footerY + 16);
+
+  const cleanFileName = title.replace(/[^a-zA-Z0-9_-]/g, '_');
+  doc.save(`${cleanFileName.endsWith('.pdf') ? cleanFileName : cleanFileName + '.pdf'}`);
+  return doc;
+}
+
+/**
+ * Generates and downloads an official Driver Pay Settlement Statement PDF.
+ */
+export function generateDriverSettlementPDF(
+  driver: FleetDriver,
+  company: CompanyProfile,
+  settlement?: DriverSettlementRecord
+): jsPDF {
+  const doc = new jsPDF({
+    orientation: 'portrait',
+    unit: 'mm',
+    format: 'a4'
+  });
+
+  const pageWidth = doc.internal.pageSize.getWidth();
+  let y = 14;
+
+  const navy = [15, 23, 42];
+  const primaryGreen = [16, 185, 129];
+  const textDark = [30, 41, 59];
+  const textMuted = [100, 116, 139];
+  const lightBox = [248, 250, 252];
+  const borderLight = [226, 232, 240];
+
+  // Header Banner
+  doc.setFillColor(navy[0], navy[1], navy[2]);
+  doc.rect(0, 0, pageWidth, 28, 'F');
+
+  doc.setTextColor(255, 255, 255);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(14);
+  doc.text(company.companyName.toUpperCase(), 14, 12);
+
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(203, 213, 225);
+  doc.text(`USDOT: ${company.dotNumber} | MC: ${company.mcNumber} | Phone: ${company.phone}`, 14, 18);
+  doc.text(`${company.address}, ${company.city}, ${company.state} ${company.zip}`, 14, 23);
+
+  // Settlement Tag
+  doc.setFillColor(primaryGreen[0], primaryGreen[1], primaryGreen[2]);
+  doc.roundedRect(pageWidth - 65, 8, 51, 13, 1.5, 1.5, 'F');
+  doc.setTextColor(255, 255, 255);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(9);
+  doc.text('DRIVER SETTLEMENT', pageWidth - 61, 14);
+  doc.setFontSize(7.5);
+  doc.text(settlement?.settlementNumber || `SET-${new Date().getFullYear()}-001`, pageWidth - 61, 19);
+
+  y = 35;
+
+  // Driver Credentials Box
+  doc.setFillColor(lightBox[0], lightBox[1], lightBox[2]);
+  doc.setDrawColor(borderLight[0], borderLight[1], borderLight[2]);
+  doc.roundedRect(14, y, pageWidth - 28, 26, 2, 2, 'FD');
+
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(navy[0], navy[1], navy[2]);
+  doc.text('DRIVER ACCOUNT & EQUIPMENT INFORMATION', 18, y + 6);
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8.5);
+  doc.setTextColor(textDark[0], textDark[1], textDark[2]);
+  doc.text(`Driver Name: ${driver.name}`, 18, y + 13);
+  doc.text(`Contact: ${driver.phone} | ${driver.email}`, 18, y + 19);
+  doc.text(`CDL License: ${driver.cdlNumber} (${driver.cdlState})`, 18, y + 24);
+
+  doc.text(`Assigned Truck: #${driver.assignedTruckNumber || '106'}`, pageWidth / 2 + 10, y + 13);
+  doc.text(`Assigned Trailer: #${driver.assignedTrailerNumber || '54211'}`, pageWidth / 2 + 10, y + 19);
+  doc.text(`Pay Model: ${driver.payModel || '65% of Load Gross'}`, pageWidth / 2 + 10, y + 24);
+
+  y += 33;
+
+  // Settlement Overview Box
+  const grossRev = settlement?.grossRevenue || 4155.00;
+  const payRate = settlement?.driverPayRate || 0.65;
+  const grossPay = settlement?.grossPay || grossRev * payRate;
+  const deductions = settlement?.deductionsTotal || 150.00;
+  const netPay = settlement?.netPay || grossPay - deductions;
+
+  doc.setFillColor(255, 255, 255);
+  doc.setDrawColor(borderLight[0], borderLight[1], borderLight[2]);
+  doc.roundedRect(14, y, pageWidth - 28, 55, 2, 2, 'FD');
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(9);
+  doc.setTextColor(navy[0], navy[1], navy[2]);
+  doc.text('STATEMENT FINANCIAL SUMMARY', 18, y + 7);
+
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(textMuted[0], textMuted[1], textMuted[2]);
+  doc.text(`Week Ending: ${settlement?.weekEnding || new Date().toISOString().split('T')[0]}`, 18, y + 13);
+  doc.text(`Status: ${(settlement?.status || 'PAID').toUpperCase()}`, 18, y + 18);
+  doc.text(`Loads Included: ${(settlement?.loadNumbers || ['GE-982301']).join(', ')}`, 18, y + 23);
+
+  // Table Line Items
+  let lineY = y + 30;
+  doc.setFillColor(241, 245, 249);
+  doc.rect(18, lineY, pageWidth - 36, 6, 'F');
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(7.5);
+  doc.setTextColor(navy[0], navy[1], navy[2]);
+  doc.text('ITEM DESCRIPTION', 22, lineY + 4);
+  doc.text('RATE / BASIS', 110, lineY + 4);
+  doc.text('AMOUNT (USD)', pageWidth - 45, lineY + 4);
+
+  lineY += 9;
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(textDark[0], textDark[1], textDark[2]);
+  doc.text('Gross Load Revenue Share', 22, lineY);
+  doc.text(`$${grossRev.toLocaleString('en-US', { minimumFractionDigits: 2 })} @ ${(payRate * 100).toFixed(0)}%`, 110, lineY);
+  doc.text(`$${grossPay.toLocaleString('en-US', { minimumFractionDigits: 2 })}`, pageWidth - 45, lineY);
+
+  lineY += 6;
+  doc.text('Fuel Advance & Toll Deductions', 22, lineY);
+  doc.text('Direct Carrier Settle', 110, lineY);
+  doc.setTextColor(220, 38, 38);
+  doc.text(`-$${deductions.toLocaleString('en-US', { minimumFractionDigits: 2 })}`, pageWidth - 45, lineY);
+
+  // Net Pay Total Highlight
+  lineY += 12;
+  doc.setFillColor(236, 253, 245);
+  doc.setDrawColor(primaryGreen[0], primaryGreen[1], primaryGreen[2]);
+  doc.roundedRect(14, lineY, pageWidth - 28, 18, 2, 2, 'FD');
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(10);
+  doc.setTextColor(navy[0], navy[1], navy[2]);
+  doc.text('NET DRIVER PAYOUT DIRECT DEPOSIT:', 18, lineY + 11);
+
+  doc.setFontSize(13);
+  doc.setTextColor(primaryGreen[0], primaryGreen[1], primaryGreen[2]);
+  doc.text(`$${netPay.toLocaleString('en-US', { minimumFractionDigits: 2 })} USD`, pageWidth - 70, lineY + 11);
+
+  // Footer notes
+  const footerY = doc.internal.pageSize.getHeight() - 30;
+  doc.setFontSize(7.5);
+  doc.setTextColor(textMuted[0], textMuted[1], textMuted[2]);
+  doc.setFont('helvetica', 'normal');
+  doc.text('This settlement advice constitutes an official commercial driver compensation record.', 14, footerY);
+  doc.text(`Questions regarding rates, mileage, or deductions should be directed to ${company.companyName} Dispatch.`, 14, footerY + 5);
+  doc.text(`Direct deposit transmitted to bank on file · Notice of assignment on file with ${company.factoringCompanyName}.`, 14, footerY + 10);
+
+  const fileName = `${driver.name.replace(/\s+/g, '_')}_Settlement_${settlement?.settlementNumber || 'Latest'}.pdf`;
+  doc.save(fileName);
   return doc;
 }

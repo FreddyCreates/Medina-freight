@@ -102,12 +102,19 @@ class OAuthTokenManager {
 
     // Attempt to retrieve token from Firebase googleAuth
     let token = await getAccessToken();
-    if (!token || forcePrompt) {
-      const authResult = await googleSignIn();
-      if (!authResult?.accessToken) {
-        throw new Error('OAuth authentication required. Please sign in with Google.');
+    if ((!token && forcePrompt) || (forcePrompt && !this.accessToken)) {
+      try {
+        const authResult = await googleSignIn();
+        if (authResult?.accessToken) {
+          token = authResult.accessToken;
+        }
+      } catch (err: any) {
+        console.warn('Google sign-in cancelled or failed:', err);
       }
-      token = authResult.accessToken;
+    }
+
+    if (!token) {
+      return '';
     }
 
     this.accessToken = token;
